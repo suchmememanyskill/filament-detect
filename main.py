@@ -151,6 +151,7 @@ while True:
                         parsed_data = processor.process_tag(scan_result, card_data)
 
                         if parsed_data is not None:
+                            logging.info(parsed_data.pretty_text())
                             logging.debug(f"Parsed filament data")
                             break
                     else:

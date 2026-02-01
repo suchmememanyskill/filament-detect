@@ -102,17 +102,12 @@ class BambuTagProcessor(MifareClassicTagProcessor):
         logging.debug(" Manufacturing Date: %s", manufacturing_date)
         logging.debug(" Color Count: %d", color_count)
         
-        # Determine modifiers from detailed type
-        modifiers = []
-        if detailed_type and detailed_type != filament_type:
-            modifiers.append(detailed_type)
-        
         return GenericFilament(
             source_processor=self.name,
             unique_id=f"Bambu_{scan_result.uid.hex(':').upper()}_{tray_uid.hex(':').upper()}_{material_id}_{production_datetime}",
             manufacturer="Bambu Lab",
             type=filament_type,
-            modifiers=modifiers,
+            modifiers=[filament_modifier] if len(filament_modifier) > 0 and filament_modifier != filament_type else [],
             colors=colors,
             diameter_mm=diameter_mm,
             weight_grams=weight_grams,

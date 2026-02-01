@@ -29,3 +29,15 @@ class GenericFilament:
         self.drying_temp_c = drying_temp_c
         self.drying_time_hours = drying_time_hours
         self.manufacturing_date = manufacturing_date
+
+    def pretty_text(self) -> str:
+        return "\n".join([
+            f"{self.manufacturer} {self.type} {' '.join(self.modifiers)} Filament:",
+            f"- Color (ARGB): {' '.join([f'#{color:06X}' for color in self.colors])}",
+            f"- Diameter: {self.diameter_mm:.2f} mm",
+            f"- Weight: {self.weight_grams} grams",
+            f"- Hotend Temp: {self.hotend_min_temp_c:.1f}C - {self.hotend_max_temp_c:.1f}C",
+            f"- Bed Temp: {self.bed_temp_c:.1f}C",
+            f"- Drying: {self.drying_temp_c:.1f}C for {self.drying_time_hours:.1f} hours",
+            f"- Manufactured on: {self.manufacturing_date}"
+        ])
