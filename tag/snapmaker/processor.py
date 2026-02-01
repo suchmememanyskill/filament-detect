@@ -1,10 +1,11 @@
-from filament import GenericFilament, SnapmakerFilament
+from filament import GenericFilament
 import hashlib, hmac
 from reader.scan_result import ScanResult
 from tag.mifare_classic_tag_processor import MifareClassicTagProcessor, TagAuthentication
 from tag.tag_types import TagType
 from . import constants as Constants
 import logging
+# Version 39.0.2 of cryptography
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
@@ -67,7 +68,7 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
         rgb_5 = (alpha << 24) | self.__convert_to_int(self.__slice(data, Constants.M1_PROTO_RGB_5_POS, Constants.M1_PROTO_RGB_5_LEN, False))
         argb_color = (alpha << 24) | (rgb_1 & 0xFFFFFF)
 
-        diameter_mm = self.__convert_to_int(self.__slice(data, Constants.M1_PROTO_DIAMETER_POS, Constants.M1_PROTO_DIAMETER_LEN))
+        diameter_mm = float(self.__convert_to_int(self.__slice(data, Constants.M1_PROTO_DIAMETER_POS, Constants.M1_PROTO_DIAMETER_LEN))) / 100.0
         weight_grams = self.__convert_to_int(self.__slice(data, Constants.M1_PROTO_WEIGHT_POS, Constants.M1_PROTO_WEIGHT_LEN))
         length_meters = self.__convert_to_int(self.__slice(data, Constants.M1_PROTO_LENGTH_POS, Constants.M1_PROTO_LENGTH_LEN))
         drying_temp = self.__convert_to_int(self.__slice(data, Constants.M1_PROTO_DRY_TEMP_POS, Constants.M1_PROTO_DRY_TEMP_LEN))
@@ -96,7 +97,7 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
         logging.debug(" RGB4: 0x%08X", rgb_4)
         logging.debug(" RGB5: 0x%08X", rgb_5)
         logging.debug(" ARGB Color: 0x%08X", argb_color)
-        logging.debug(" Diameter (mm): %d", diameter_mm)
+        logging.debug(" Diameter (mm): %f", diameter_mm)
         logging.debug(" Weight (grams): %d", weight_grams)
         logging.debug(" Length (meters): %d", length_meters)
         logging.debug(" Drying Temp (C): %d", drying_temp)

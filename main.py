@@ -7,6 +7,9 @@ import time
 import logging
 
 from reader.mifare_classic_reader import MifareClassicReader
+from tag.bambu.processor import BambuTagProcessor
+from tag.creality.processor import CrealityTagProcessor
+from tag.mifare_classic_tag_processor import MifareClassicTagProcessor
 from tag.snapmaker.processor import SnapmakerTagProcessor
 
 logging.basicConfig(level=logging.DEBUG)
@@ -113,26 +116,46 @@ readers = [
     gpio_enabled_rfid_reader_4
 ]
 
+mifare_classic_processors : list[MifareClassicTagProcessor] = [
+    SnapmakerTagProcessor(),
+    BambuTagProcessor(),
+    CrealityTagProcessor(),
+]
+
 while True:
     snapmaker_tag_processor = SnapmakerTagProcessor()
     for reader in readers:
         logging.debug(f"Starting scan with reader: {reader.name}")
         reader.start_session()
         scan_result = reader.scan()
+        reader.end_session()
         if scan_result is not None:
             logging.info(scan_result.pretty_text())
             if isinstance(reader, MifareClassicReader):
-                auth = snapmaker_tag_processor.authenticate_tag(scan_result)
-                card_data = reader.read_mifare_classic(scan_result, auth)
-                if card_data is not None:
-                    logging.info(f"Read MIFARE Classic card data: {card_data.hex().upper()}")
-                    parsed_data = snapmaker_tag_processor.process_tag(scan_result, card_data)
+                read = False
+                for processor in mifare_classic_processors:
+                    reader.start_session()
 
-                    if parsed_data is not None:
-                        logging.debug(f"Parsed filament data")
-                else:
-                    logging.warning("Failed to read MIFARE Classic card data")
+                    if reader.scan() == None:
+                        logging.warning("Tag lost before reading")
+                        reader.end_session()
+                        continue
+
+                    logging.debug(f"Attempting to read with processor: {processor.name}")
+                    auth = processor.authenticate_tag(scan_result)
+                    card_data = reader.read_mifare_classic(scan_result, auth)
+                    reader.end_session()
+
+                    if card_data is not None:
+                        #logging.debug(f"Read MIFARE Classic card data: {card_data.hex().upper()}")
+                        parsed_data = processor.process_tag(scan_result, card_data)
+
+                        if parsed_data is not None:
+                            logging.debug(f"Parsed filament data")
+                            break
+                    else:
+                        logging.warning("Failed to read MIFARE Classic card data")
+                        continue
             else:
                 logging.warning("Reader is not a MifareClassicReader")
-        reader.end_session()
     time.sleep(10)

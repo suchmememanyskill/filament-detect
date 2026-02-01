@@ -615,6 +615,7 @@ class Fm175xx(MifareClassicReader, MifareUltralightReader):
         for sector_no in range(Constants.FM175XX_M1_CARD_SECTORS):
             # Authentication
             result = Constants.FM175XX_ERR
+            #print(auth_key.hkdf_key_a[sector_no])
             for _ in range(retry_times):
                 result = self.__reader_a_mifare_auth(auth_mode, sector_no, auth_key.hkdf_key_a[sector_no], uid)
                 if (result == Constants.FM175XX_OK):
