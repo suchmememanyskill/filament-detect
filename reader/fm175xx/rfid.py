@@ -73,7 +73,13 @@ class Fm175xx(MifareClassicReader, MifareUltralightReader):
         return bytes(data.out_data)
     
     def read_mifare_ultralight(self, scan_result: ScanResult) -> bytes | None:
-        return None  # Not implemented
+        data = self.__reader_a_ultralight_read_all_data()
+
+        if data.err_code != Constants.FM175XX_OK:
+            logging.error("Mifare Classic read error: %d", data.err_code)
+            return None
+
+        return bytes(data.out_data)
 
     # read register
     def __register_read(self, addr:int) -> int:
@@ -642,6 +648,65 @@ class Fm175xx(MifareClassicReader, MifareUltralightReader):
             area = sector_no * Constants.FM175XX_M1_CARD_BYTES_PER_SEC + 3 * Constants.FM175XX_M1_CARD_BYTES_PER_BLK
             card_data_tmp[area : area + Constants.FM175XX_M1_CARD_BYTES_PER_BLK] = \
                     auth_key.hkdf_key_a[sector_no] + Constants.FM175XX_M1_CARD_ACCESS_CODE + auth_key.hkdf_key_b[sector_no]
+
+        ret.err_code = Constants.FM175XX_OK
+        ret.out_data = card_data_tmp
+        return ret
+    
+    # Reader-A: NTAG/Ultralight, read a page (4 bytes)
+    def __reader_a_ultralight_page_read(self, page:int) -> Fm175xxReturnVal:
+        outbuf = [0] * 2
+        inbuf = [0] * 16
+        cmd = Fm175xxCmdMetaData()
+        ret = Fm175xxReturnVal()
+
+        cmd.send_crc_en = Constants.FM175XX_SET
+        cmd.recv_crc_en = Constants.FM175XX_SET
+        cmd.send_buff = outbuf
+        cmd.recv_buff = inbuf
+        cmd.send_buff[0] = 0x30
+        cmd.send_buff[1] = page
+        cmd.bytes_to_send = 2
+        cmd.bits_to_send = 0
+        cmd.bits_to_recv = 0
+        cmd.bytes_to_recv = 16
+        cmd.timeout = 10
+        cmd.cmd = Constants.FM175XX_CMD_TRANSCEIVE
+        result = self.__command_exe(cmd)
+        ret.err_code = result.err_code
+
+        if (Constants.FM175XX_OK == result.err_code):
+            if (len(result.out_data) == 16):
+                ret.out_data = result.out_data
+            else:
+                ret.err_code = Constants.FM175XX_CARD_COMM_ERR
+
+        return ret
+
+    # TODO: Maybe don't call it ultralight but the actual ISO specification
+    # Reader-A: NTAG215, read all data
+    def __reader_a_ultralight_read_all_data(self, retry_times = 3) -> Fm175xxReturnVal:
+        ret = Fm175xxReturnVal()
+        card_data_tmp = [0] * Constants.FM175XX_NTAG215_TOTAL_SIZE
+
+        for page_no in range(0, Constants.FM175XX_NTAG215_TOTAL_PAGES, 4):
+            result = Fm175xxReturnVal()
+            for _ in range(retry_times):
+                result = self.__reader_a_ultralight_page_read(page_no)
+                if (result.err_code == Constants.FM175XX_OK):
+                    break
+            if (result.err_code != Constants.FM175XX_OK):
+                if (page_no - 4) in Constants.FM175XX_ULTRALIGHT_VALID_END_PAGES:
+                    card_data_tmp = card_data_tmp[0 : (page_no * Constants.FM175XX_NTAG215_BYTES_PER_PAGE)]
+                    break
+
+                ret.err_code = Constants.FM175XX_CARD_READ_ERR
+                return ret
+
+            area = page_no * Constants.FM175XX_NTAG215_BYTES_PER_PAGE
+            bytes_to_copy = min(16, Constants.FM175XX_NTAG215_TOTAL_SIZE - area)
+            if bytes_to_copy > 0:
+                card_data_tmp[area : area + bytes_to_copy] = result.out_data[0 : bytes_to_copy]
 
         ret.err_code = Constants.FM175XX_OK
         ret.out_data = card_data_tmp

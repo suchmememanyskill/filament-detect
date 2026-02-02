@@ -7,10 +7,15 @@ import time
 import logging
 
 from reader.mifare_classic_reader import MifareClassicReader
+from reader.mifare_ultralight_reader import MifareUltralightReader
+from tag.anycubic.processor import AnycubicTagProcessor
 from tag.bambu.processor import BambuTagProcessor
 from tag.creality.processor import CrealityTagProcessor
 from tag.mifare_classic_tag_processor import MifareClassicTagProcessor
+from tag.mifare_ultralight_tag_processor import MifareUltralightTagProcessor
+from tag.openspool.processor import OpenspoolTagProcessor
 from tag.snapmaker.processor import SnapmakerTagProcessor
+from tag.tag_types import TagType
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -122,6 +127,11 @@ mifare_classic_processors : list[MifareClassicTagProcessor] = [
     CrealityTagProcessor(),
 ]
 
+mifare_ultralight_processors : list[MifareUltralightTagProcessor] = [
+    OpenspoolTagProcessor(),
+    AnycubicTagProcessor(),
+]
+
 while True:
     snapmaker_tag_processor = SnapmakerTagProcessor()
     for reader in readers:
@@ -131,7 +141,7 @@ while True:
         reader.end_session()
         if scan_result is not None:
             logging.info(scan_result.pretty_text())
-            if isinstance(reader, MifareClassicReader):
+            if scan_result.tag_type == TagType.MifareClassic1k and isinstance(reader, MifareClassicReader):
                 read = False
                 for processor in mifare_classic_processors:
                     reader.start_session()
@@ -147,7 +157,7 @@ while True:
                     reader.end_session()
 
                     if card_data is not None:
-                        #logging.debug(f"Read MIFARE Classic card data: {card_data.hex().upper()}")
+                        logging.debug(f"Read MIFARE Classic card data: {card_data.hex().upper()}")
                         parsed_data = processor.process_tag(scan_result, card_data)
 
                         if parsed_data is not None:
@@ -157,6 +167,31 @@ while True:
                     else:
                         logging.warning("Failed to read MIFARE Classic card data")
                         continue
+            elif scan_result.tag_type == TagType.MifareUltralight and isinstance(reader, MifareUltralightReader):
+                reader.start_session()
+
+                if reader.scan() == None:
+                    logging.warning("Tag lost before reading")
+                    reader.end_session()
+                    continue
+
+                card_data = reader.read_mifare_ultralight(scan_result)
+                reader.end_session()
+
+                if card_data is not None:
+                    logging.debug(f"Read MIFARE Ultralight card data: {card_data.hex().upper()}")
+
+                    for processor in mifare_ultralight_processors:
+                        logging.debug(f"Attempting to read with processor: {processor.name}")
+                        parsed_data = processor.process_tag(scan_result, card_data)
+
+                        if parsed_data is not None:
+                            logging.info(parsed_data.pretty_text())
+                            logging.debug(f"Parsed filament data")
+                            break
+
+                else:
+                    logging.warning("Failed to read MIFARE Ultralight card data")
             else:
-                logging.warning("Reader is not a MifareClassicReader")
+                logging.warning("Failed to find compatible reader for tag type %s", scan_result.tag_type.name)
     time.sleep(10)

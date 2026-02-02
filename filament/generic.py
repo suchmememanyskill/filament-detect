@@ -31,8 +31,14 @@ class GenericFilament:
         self.manufacturing_date = manufacturing_date
 
     def pretty_text(self) -> str:
+
+        modifiers = ' '.join(self.modifiers)
+
+        if modifiers:
+            modifiers += " "
+
         return "\n".join([
-            f"{self.manufacturer} {self.type} {' '.join(self.modifiers)} Filament:",
+            f"{self.manufacturer} {self.type} {modifiers}Filament (processed by {self.source_processor}):",
             f"- Color (ARGB): {' '.join([f'#{color:06X}' for color in self.colors])}",
             f"- Diameter: {self.diameter_mm:.2f} mm",
             f"- Weight: {self.weight_grams} grams",
