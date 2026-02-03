@@ -5,6 +5,7 @@ from reader.fm175xx.rfid import Fm175xx
 from reader.gpio_enabled_rfid_reader import GpioEnabledRfidReader
 import time
 import logging
+import requests
 
 from reader.mifare_classic_reader import MifareClassicReader
 from reader.mifare_ultralight_reader import MifareUltralightReader
@@ -85,28 +86,32 @@ gpio_enabled_rfid_reader_1 = GpioEnabledRfidReader({
     "__name": "gpio_enabled_rfid_reader_1",
     "rfid_reader": "fm175_1",
     "gpio_pins_high": ["rf_1_pin"],
-    "gpio_pins_low": ["rf_2_pin"]
+    "gpio_pins_low": ["rf_2_pin"],
+    "slot": 2,
 })
 
 gpio_enabled_rfid_reader_2 = GpioEnabledRfidReader({
     "__name": "gpio_enabled_rfid_reader_1_mode_2",
     "rfid_reader": "fm175_1",
     "gpio_pins_high": ["rf_2_pin"],
-    "gpio_pins_low": ["rf_1_pin"]
+    "gpio_pins_low": ["rf_1_pin"],
+    "slot": 3,
 })
 
 gpio_enabled_rfid_reader_3 = GpioEnabledRfidReader({
     "__name": "gpio_enabled_rfid_reader_2",
     "rfid_reader": "fm175_2",
     "gpio_pins_high": ["rf_1_pin"],
-    "gpio_pins_low": ["rf_2_pin"]
+    "gpio_pins_low": ["rf_2_pin"],
+    "slot": 0,
 })
 
 gpio_enabled_rfid_reader_4 = GpioEnabledRfidReader({
     "__name": "gpio_enabled_rfid_reader_2_mode_2",
     "rfid_reader": "fm175_2",
     "gpio_pins_high": ["rf_2_pin"],
-    "gpio_pins_low": ["rf_1_pin"]
+    "gpio_pins_low": ["rf_1_pin"],
+    "slot": 1,
 })
 
 register_configurable_entity(gpio_enabled_rfid_reader_1)
@@ -140,6 +145,7 @@ while True:
         scan_result = reader.scan()
         reader.end_session()
         if scan_result is not None:
+            parsed_data = None
             logging.info(scan_result.pretty_text())
             if scan_result.tag_type == TagType.MifareClassic1k and isinstance(reader, MifareClassicReader):
                 read = False
@@ -159,11 +165,7 @@ while True:
                     if card_data is not None:
                         logging.debug(f"Read MIFARE Classic card data: {card_data.hex().upper()}")
                         parsed_data = processor.process_tag(scan_result, card_data)
-
-                        if parsed_data is not None:
-                            logging.info(parsed_data.pretty_text())
-                            logging.debug(f"Parsed filament data")
-                            break
+                        break
                     else:
                         logging.warning("Failed to read MIFARE Classic card data")
                         continue
@@ -186,12 +188,18 @@ while True:
                         parsed_data = processor.process_tag(scan_result, card_data)
 
                         if parsed_data is not None:
-                            logging.info(parsed_data.pretty_text())
-                            logging.debug(f"Parsed filament data")
                             break
-
                 else:
                     logging.warning("Failed to read MIFARE Ultralight card data")
             else:
                 logging.warning("Failed to find compatible reader for tag type %s", scan_result.tag_type.name)
-    time.sleep(10)
+
+            if parsed_data is not None:
+                logging.info(parsed_data.pretty_text())
+                logging.debug(f"Parsed filament data")
+
+                requests.post("http://localhost/printer/gcode/script", json={
+                    "script": f"SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={reader.slot} FILAMENT_TYPE={parsed_data.type} FILAMENT_SUBTYPE=\"{' '.join(parsed_data.modifiers)}\" VENDOR=\"{parsed_data.manufacturer}\" FILAMENT_COLOR_RGBA={parsed_data.rgba:08X} FILAMENT_SPOOL_ID=test"
+                })
+                
+    time.sleep(1)

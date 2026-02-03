@@ -26,11 +26,11 @@ class AnycubicTagProcessor(MifareUltralightTagProcessor):
         filament_types = filament_type.replace("-", " ").split(" ")
 
         a = data[0x50]
-        r = data[0x51]
+        b = data[0x51]
         g = data[0x52]
-        b = data[0x53]
+        r = data[0x53]
 
-        argb = (0xFF << 24) | (r << 16) | (g << 8) | b
+        argb = (a << 24) | (r << 16) | (g << 8) | b
 
         extruder_min_temp_c = self.__extract_uint16_le(data, 0x60)
         extruder_max_temp_c = self.__extract_uint16_le(data, 0x62)

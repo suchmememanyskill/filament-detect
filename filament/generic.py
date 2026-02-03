@@ -31,7 +31,6 @@ class GenericFilament:
         self.manufacturing_date = manufacturing_date
 
     def pretty_text(self) -> str:
-
         modifiers = ' '.join(self.modifiers)
 
         if modifiers:
@@ -47,3 +46,17 @@ class GenericFilament:
             f"- Drying: {self.drying_temp_c:.1f}C for {self.drying_time_hours:.1f} hours",
             f"- Manufactured on: {self.manufacturing_date}"
         ])
+    
+    @property
+    def rgba(self) -> int:
+        if not self.colors or len(self.colors) == 0:
+            return 0x00000000  # Transparent if no color available
+        
+        argb = self.colors[0]
+        a = (argb >> 24) & 0xFF
+        r = (argb >> 16) & 0xFF
+        g = (argb >> 8) & 0xFF
+        b = argb & 0xFF
+
+        rgba = (r << 24) | (g << 16) | (b << 8) | a
+        return rgba

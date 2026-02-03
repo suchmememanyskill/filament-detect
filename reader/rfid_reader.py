@@ -7,6 +7,7 @@ class RfidReader(ConfigurableEntity):
         super().__init__(config, TYPE_RFID_READER)
         self.name = config["__name"]
         self.use_reader = config.get("use_reader", True)
+        self.slot = int(config.get("slot", 0))
 
     @abstractmethod
     def start_session(self):
