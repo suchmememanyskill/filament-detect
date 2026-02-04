@@ -17,3 +17,12 @@ class ScanResult:
             self.bcc.hex(":").upper(),
             self.sak.hex(":").upper()
         )
+    
+    def to_dict(self) -> dict:
+        return {
+            "tag_type": self.tag_type.name,
+            "uid": self.uid.hex().upper(),
+            "atqa": self.atqa.hex().upper(),
+            "bcc": self.bcc.hex().upper(),
+            "sak": self.sak.hex().upper()
+        }

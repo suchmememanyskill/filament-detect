@@ -7,8 +7,8 @@ from . import constants as Constants
 # Adapted from https://github.com/paxx12/SnapmakerU1-Extended-Firmware/blob/3c97d1d80309d817ad37f2daac8e436712cc7865/overlays/firmware-extended/13-rfid-support/root/home/lava/klipper/klippy/extras/filament_protocol_ndef.py
 
 class OpenspoolTagProcessor(NdefTagProcessor):
-    def __init__(self):
-        super().__init__("Openspool Tag Processor")
+    def __init__(self, config : dict):
+        super().__init__(config)
 
     def process_ndef(self, scan_result: ScanResult, ndef_records: list[NdefRecord]) -> GenericFilament | None:
         for record in ndef_records:

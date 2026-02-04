@@ -1,3 +1,12 @@
+def to_rgba(argb: int) -> int:
+    a = (argb >> 24) & 0xFF
+    r = (argb >> 16) & 0xFF
+    g = (argb >> 8) & 0xFF
+    b = argb & 0xFF
+
+    rgba = (r << 24) | (g << 16) | (b << 8) | a
+    return rgba
+
 class GenericFilament:
     def __init__(self,
                  source_processor: str,
@@ -46,17 +55,31 @@ class GenericFilament:
             f"- Drying: {self.drying_temp_c:.1f}C for {self.drying_time_hours:.1f} hours",
             f"- Manufactured on: {self.manufacturing_date}"
         ])
-    
+
     @property
     def rgba(self) -> int:
         if not self.colors or len(self.colors) == 0:
             return 0x00000000  # Transparent if no color available
         
         argb = self.colors[0]
-        a = (argb >> 24) & 0xFF
-        r = (argb >> 16) & 0xFF
-        g = (argb >> 8) & 0xFF
-        b = argb & 0xFF
-
-        rgba = (r << 24) | (g << 16) | (b << 8) | a
-        return rgba
+        return to_rgba(argb)
+    
+    def to_dict(self) -> dict:
+        return {
+            "source_processor": self.source_processor,
+            "unique_id": self.unique_id,
+            "manufacturer": self.manufacturer,
+            "type": self.type,
+            "modifiers": self.modifiers,
+            "colors": self.colors,
+            "colors_rgba": [to_rgba(color) for color in self.colors],
+            "colors_rgba_hex": [f"{to_rgba(color):08X}" for color in self.colors],
+            "diameter_mm": self.diameter_mm,
+            "weight_grams": self.weight_grams,
+            "hotend_min_temp_c": self.hotend_min_temp_c,
+            "hotend_max_temp_c": self.hotend_max_temp_c,
+            "bed_temp_c": self.bed_temp_c,
+            "drying_temp_c": self.drying_temp_c,
+            "drying_time_hours": self.drying_time_hours,
+            "manufacturing_date": self.manufacturing_date
+        }

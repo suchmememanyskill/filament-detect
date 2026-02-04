@@ -21,8 +21,8 @@ class NdefRecord:
         self.payload = payload
 
 class NdefTagProcessor(MifareUltralightTagProcessor):
-    def __init__(self, name : str):
-        super().__init__(name)
+    def __init__(self, config : dict):
+        super().__init__(config)
 
     def process_tag(self, scan_result: ScanResult, data: bytes) -> GenericFilament | None:
         if scan_result.tag_type != TagType.MifareUltralight:

@@ -12,8 +12,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 
 class SnapmakerTagProcessor(MifareClassicTagProcessor):
-    def __init__(self):
-        super().__init__("Snapmaker Tag Processor")
+    def __init__(self, config : dict):
+        super().__init__(config)
 
     def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:

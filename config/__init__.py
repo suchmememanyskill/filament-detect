@@ -4,3 +4,6 @@ from .configurable_entity import ConfigurableEntity
 TYPE_SOFTWARE_SPI = "software_spi"
 TYPE_OUTPUT_PIN = "output_pin"
 TYPE_RFID_READER = "rfid_reader"
+TYPE_EXPORTER = "exporter"
+TYPE_RUNTIME = "runtime"
+TYPE_TAG_PROCESSOR = "tag_processor"

@@ -7,8 +7,8 @@ import struct
 # Adapted from https://github.com/DnG-Crafts/ACE-RFID
 
 class AnycubicTagProcessor(MifareUltralightTagProcessor):
-    def __init__(self):
-        super().__init__("Anycubic Tag Processor")
+    def __init__(self, config : dict):
+        super().__init__(config)
 
     def process_tag(self, scan_result: ScanResult, data: bytes) -> GenericFilament | None:
         if scan_result.tag_type != TagType.MifareUltralight:

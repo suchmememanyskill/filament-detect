@@ -9,8 +9,8 @@ import struct
 import logging
 
 class BambuTagProcessor(MifareClassicTagProcessor):
-    def __init__(self):
-        super().__init__("Bambu Lab Tag Processor")
+    def __init__(self, config : dict):
+        super().__init__(config)
 
     def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:

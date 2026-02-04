@@ -10,8 +10,8 @@ class TagAuthentication:
         self.hkdf_key_b = hkdf_key_b
 
 class MifareClassicTagProcessor(TagProcessor):
-    def __init__(self, name : str):
-        super().__init__(name)
+    def __init__(self, config : dict):
+        super().__init__(config)
     
     @abstractmethod
     def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:

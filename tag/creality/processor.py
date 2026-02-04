@@ -8,8 +8,8 @@ from . import constants as Constants
 import logging
 
 class CrealityTagProcessor(MifareClassicTagProcessor):
-    def __init__(self):
-        super().__init__("Creality Tag Processor")
+    def __init__(self, config : dict):
+        super().__init__(config)
 
     def authenticate_tag(self, scan_result) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:

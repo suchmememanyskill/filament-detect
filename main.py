@@ -6,6 +6,10 @@ from reader.gpio_enabled_rfid_reader import GpioEnabledRfidReader
 import time
 import logging
 import requests
+import runtime
+import sys
+import os
+import toml
 
 from reader.mifare_classic_reader import MifareClassicReader
 from reader.mifare_ultralight_reader import MifareUltralightReader
@@ -126,80 +130,24 @@ readers = [
     gpio_enabled_rfid_reader_4
 ]
 
-mifare_classic_processors : list[MifareClassicTagProcessor] = [
-    SnapmakerTagProcessor(),
-    BambuTagProcessor(),
-    CrealityTagProcessor(),
-]
+def main():
+    if len(sys.argv) < 2:
+        logging.error("No config file provided")
+        sys.exit(1)
+    
+    config_file = sys.argv[1]
 
-mifare_ultralight_processors : list[MifareUltralightTagProcessor] = [
-    OpenspoolTagProcessor(),
-    AnycubicTagProcessor(),
-]
+    if not os.path.exists(config_file):
+        logging.error(f"Config file does not exist: {config_file}")
+        sys.exit(1)
+    
+    with open(config_file, "r") as f:
+        config = f.read()
 
-while True:
-    snapmaker_tag_processor = SnapmakerTagProcessor()
-    for reader in readers:
-        logging.debug(f"Starting scan with reader: {reader.name}")
-        reader.start_session()
-        scan_result = reader.scan()
-        reader.end_session()
-        if scan_result is not None:
-            parsed_data = None
-            logging.info(scan_result.pretty_text())
-            if scan_result.tag_type == TagType.MifareClassic1k and isinstance(reader, MifareClassicReader):
-                read = False
-                for processor in mifare_classic_processors:
-                    reader.start_session()
+    toml_config = toml.loads(config)
 
-                    if reader.scan() == None:
-                        logging.warning("Tag lost before reading")
-                        reader.end_session()
-                        continue
-
-                    logging.debug(f"Attempting to read with processor: {processor.name}")
-                    auth = processor.authenticate_tag(scan_result)
-                    card_data = reader.read_mifare_classic(scan_result, auth)
-                    reader.end_session()
-
-                    if card_data is not None:
-                        logging.debug(f"Read MIFARE Classic card data: {card_data.hex().upper()}")
-                        parsed_data = processor.process_tag(scan_result, card_data)
-                        break
-                    else:
-                        logging.warning("Failed to read MIFARE Classic card data")
-                        continue
-            elif scan_result.tag_type == TagType.MifareUltralight and isinstance(reader, MifareUltralightReader):
-                reader.start_session()
-
-                if reader.scan() == None:
-                    logging.warning("Tag lost before reading")
-                    reader.end_session()
-                    continue
-
-                card_data = reader.read_mifare_ultralight(scan_result)
-                reader.end_session()
-
-                if card_data is not None:
-                    logging.debug(f"Read MIFARE Ultralight card data: {card_data.hex().upper()}")
-
-                    for processor in mifare_ultralight_processors:
-                        logging.debug(f"Attempting to read with processor: {processor.name}")
-                        parsed_data = processor.process_tag(scan_result, card_data)
-
-                        if parsed_data is not None:
-                            break
-                else:
-                    logging.warning("Failed to read MIFARE Ultralight card data")
-            else:
-                logging.warning("Failed to find compatible reader for tag type %s", scan_result.tag_type.name)
-
-            if parsed_data is not None:
-                logging.info(parsed_data.pretty_text())
-                logging.debug(f"Parsed filament data")
-
-                requests.post("http://localhost/printer/gcode/script", json={
-                    "script": f"SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={reader.slot} FILAMENT_TYPE={parsed_data.type} FILAMENT_SUBTYPE=\"{' '.join(parsed_data.modifiers)}\" VENDOR=\"{parsed_data.manufacturer}\" FILAMENT_COLOR_RGBA={parsed_data.rgba:08X} FILAMENT_SPOOL_ID=test"
-                })
-                
-    time.sleep(1)
+    run = runtime.consume_config(toml_config)
+    run.loop()
+    
+if __name__ == "__main__":
+    main()
