@@ -1,12 +1,5 @@
-from config import ConfigurableEntity, register_configurable_entity, get_required_configurable_entity_by_name, TYPE_RUNTIME, TYPE_EXPORTER, TYPE_TAG_PROCESSOR, TYPE_RFID_READER
-from bus import OutputPin, SoftwareSPI
-from reader.fm175xx import Fm175xx
-from reader.gpio_enabled_rfid_reader import GpioEnabledRfidReader
-from tag.bambu import BambuTagProcessor
-from tag.anycubic import AnycubicTagProcessor
-from tag.creality import CrealityTagProcessor
-from tag.openspool import OpenspoolTagProcessor
-from tag.snapmaker import SnapmakerTagProcessor
+from config import TYPE_CONTROLLER, ConfigurableEntity, get_required_configurable_entity_by_name, TYPE_EXPORTER, TYPE_TAG_PROCESSOR, TYPE_RFID_READER
+from controllers.controller import Controller
 from tag.tag_types import TagType
 from tag.tag_processor import TagProcessor
 from tag.mifare_classic_tag_processor import MifareClassicTagProcessor
@@ -14,7 +7,6 @@ from tag.mifare_ultralight_tag_processor import MifareUltralightTagProcessor
 from reader.mifare_classic_reader import MifareClassicReader
 from reader.mifare_ultralight_reader import MifareUltralightReader
 from reader.rfid_reader import RfidReader
-from exporters.webhook import WebhookExporter
 from exporters.exporter import Exporter
 from reader.scan_result import ScanResult
 from filament import GenericFilament
@@ -29,21 +21,36 @@ class Runtime(ConfigurableEntity):
 
         self.auto_read_mode = bool(config.get("auto_read_mode", False))
         self.read_interval_seconds = int(config.get("read_interval_seconds", 1))
+        self.read_retries = int(config.get("retries", 3))
 
         self.rfid_readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in config.get("rfid_readers", [])]
         self.tag_processors : list[TagProcessor] = [cast(TagProcessor, get_required_configurable_entity_by_name(name, TYPE_TAG_PROCESSOR)) for name in config.get("tag_processors", [])]
         self.exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in config.get("exporters", [])]
+        self.error_exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in config.get("error_exporters", [])]
+        self.controllers : list[Controller] = [cast(Controller, get_required_configurable_entity_by_name(name, TYPE_CONTROLLER)) for name in config.get("controllers", [])]
+
+        for controller in self.controllers:
+            controller.runtime = self # type: ignore
 
         self.mifare_classic_processors = [processor for processor in self.tag_processors if isinstance(processor, MifareClassicTagProcessor)]
         self.mifare_ultralight_processors = [processor for processor in self.tag_processors if isinstance(processor, MifareUltralightTagProcessor)]
 
-        self.read_requested = [False] * len(self.rfid_readers)
+        self.read_retries_left = [0] * len(self.rfid_readers)
+
+    def start_reading_tag(self, slot: int):
+        if slot < 0 or slot >= len(self.rfid_readers):
+            logging.error(f"Invalid slot number: {slot}")
+            return
+        
+        self.read_retries_left[slot] = self.read_retries
+        logging.info(f"Started reading tag on slot {slot} with {self.read_retries} retries")
 
     def loop(self):
         while True:
             for i, reader in enumerate(self.rfid_readers):
-                if self.auto_read_mode or self.read_requested[i]:
+                if self.auto_read_mode or self.read_retries_left[i] > 0:
                     result = self.process_reader_single(reader)
+                    self.read_retries_left[i] -= 1
 
                     if result is not None:
                         scan_result, filament = result
@@ -52,7 +59,14 @@ class Runtime(ConfigurableEntity):
                         for exporter in self.exporters:
                             exporter.export_data(scan_result, filament, reader)
 
-                        self.read_requested[i] = False
+                        self.read_retries_left[i] = 0
+
+                    elif self.read_retries_left[i] <= 0:
+                        logging.warning(f"Failed to read from reader {reader.name}, no retries left")
+                        self.read_retries_left[i] = 0
+
+                        for exporter in self.error_exporters:
+                            exporter.export_data(None, None, reader)
 
             time.sleep(self.read_interval_seconds)
         
@@ -134,41 +148,3 @@ class Runtime(ConfigurableEntity):
             logging.warning("Failed to read MIFARE Ultralight card data")
 
         return None
-
-def consume_config(config: dict) -> Runtime:
-    for key, value in config.items():
-        configurable_entity = create_configurable_entity(key, value)
-        register_configurable_entity(configurable_entity)
-
-    return cast(Runtime, get_required_configurable_entity_by_name("runtime", TYPE_RUNTIME))
-
-def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
-    key_split = key.split(" ", 2)
-    name = key_split[1] if len(key_split) > 1 else key_split[0]
-    config["__name"] = name
-
-    match key_split[0]:
-        case "runtime":
-            return Runtime(config)
-        case "output_pin":
-            return OutputPin(config)
-        case "software_spi":
-            return SoftwareSPI(config)
-        case "fm175xx":
-            return Fm175xx(config)
-        case "gpio_enabled_rfid_reader":
-            return GpioEnabledRfidReader(config)
-        case "bambu_lab_tag_processor":
-            return BambuTagProcessor(config)
-        case "anycubic_tag_processor":
-            return AnycubicTagProcessor(config)
-        case "creality_tag_processor":
-            return CrealityTagProcessor(config)
-        case "openspool_tag_processor":
-            return OpenspoolTagProcessor(config)
-        case "snapmaker_tag_processor":
-            return SnapmakerTagProcessor(config)
-        case "webhook_exporter":
-            return WebhookExporter(config)
-        case _:
-            raise ValueError(f"Unknown configurable entity type: {key_split[0]}")

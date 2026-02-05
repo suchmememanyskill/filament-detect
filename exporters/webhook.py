@@ -24,10 +24,10 @@ class WebhookExporter(Exporter):
         if not self.url and not self.url_template:
             raise ValueError("WebhookExporter requires either a 'url' or 'url_template' in the configuration")
 
-    def export_data(self, scan: ScanResult, filament: GenericFilament, reader : RfidReader):
+    def export_data(self, scan: ScanResult|None, filament: GenericFilament|None, reader : RfidReader):
         context = {
-            "scan": scan.to_dict(),
-            "filament": filament.to_dict(),
+            "scan": scan.to_dict() if scan else None,
+            "filament": filament.to_dict() if filament else None,
             "reader": {
                 "name": reader.name,
                 "slot": reader.slot

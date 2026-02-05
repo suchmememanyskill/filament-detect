@@ -1,15 +1,19 @@
 
+from typing import cast
 from bus import OutputPin, SoftwareSPI
-from config import register_configurable_entity
+from config import register_configurable_entity, get_required_configurable_entity_by_name, TYPE_RUNTIME, TYPE_EXPORTER, TYPE_TAG_PROCESSOR, TYPE_RFID_READER, ConfigurableEntity
+from controllers.moonraker_remote_method import MoonrakerRemoteMethodController
+from exporters.webhook import WebhookExporter
 from reader.fm175xx.rfid import Fm175xx
 from reader.gpio_enabled_rfid_reader import GpioEnabledRfidReader
 import time
 import logging
 import requests
-import runtime
+from runtime import Runtime
 import sys
 import os
 import json
+import threading
 
 from reader.mifare_classic_reader import MifareClassicReader
 from reader.mifare_ultralight_reader import MifareUltralightReader
@@ -22,113 +26,47 @@ from tag.openspool.processor import OpenspoolTagProcessor
 from tag.snapmaker.processor import SnapmakerTagProcessor
 from tag.tag_types import TagType
 
-logging.basicConfig(level=logging.DEBUG)
+def consume_config(config: dict) -> Runtime:
+    for key, value in config.items():
+        configurable_entity = create_configurable_entity(key, value)
+        register_configurable_entity(configurable_entity)
 
-#rf_1_pin = OutputPin({
-#    "__name": "rf_1_pin",
-#    "gpio_device": 1,
-#    "line": 27
-#})
-#
-#rf_2_pin = OutputPin({
-#    "__name": "rf_2_pin",
-#    "gpio_device": 1,
-#    "line": 24
-#})
-#
-#fm175_1_reset_pin = OutputPin({
-#    "__name": "fm175_1_reset_pin",
-#    "gpio_device": 1,
-#    "line": 25
-#})
-#
-#fm175_2_reset_pin = OutputPin({
-#    "__name": "fm175_2_reset_pin",
-#    "gpio_device": 1,
-#    "line": 28
-#})
-#
-#software_spi_1 = SoftwareSPI({
-#    "__name": "software_spi_1",
-#    "bus": 2,
-#    "device": 0,
-#    "max_speed_hz": 500000,
-#    "mode": 0
-#})
-#
-#software_spi_2 = SoftwareSPI({
-#    "__name": "software_spi_2",
-#    "bus": 2,
-#    "device": 1,
-#    "max_speed_hz": 500000,
-#    "mode": 0
-#})
-#
-#register_configurable_entity(rf_1_pin)
-#register_configurable_entity(rf_2_pin)
-#register_configurable_entity(fm175_1_reset_pin)
-#register_configurable_entity(fm175_2_reset_pin)
-#register_configurable_entity(software_spi_1)
-#register_configurable_entity(software_spi_2)
-#
-#fm175_1 = Fm175xx({
-#    "__name": "fm175_1",
-#    "spi": "software_spi_1",
-#    "reset_pin": "fm175_1_reset_pin"
-#})
-#
-#fm175_2 = Fm175xx({
-#    "__name": "fm175_2",
-#    "spi": "software_spi_2",
-#    "reset_pin": "fm175_2_reset_pin"
-#})
-#
-#register_configurable_entity(fm175_1)
-#register_configurable_entity(fm175_2)
-#
-#gpio_enabled_rfid_reader_1 = GpioEnabledRfidReader({
-#    "__name": "gpio_enabled_rfid_reader_1",
-#    "rfid_reader": "fm175_1",
-#    "gpio_pins_high": ["rf_1_pin"],
-#    "gpio_pins_low": ["rf_2_pin"],
-#    "slot": 2,
-#})
-#
-#gpio_enabled_rfid_reader_2 = GpioEnabledRfidReader({
-#    "__name": "gpio_enabled_rfid_reader_1_mode_2",
-#    "rfid_reader": "fm175_1",
-#    "gpio_pins_high": ["rf_2_pin"],
-#    "gpio_pins_low": ["rf_1_pin"],
-#    "slot": 3,
-#})
-#
-#gpio_enabled_rfid_reader_3 = GpioEnabledRfidReader({
-#    "__name": "gpio_enabled_rfid_reader_2",
-#    "rfid_reader": "fm175_2",
-#    "gpio_pins_high": ["rf_1_pin"],
-#    "gpio_pins_low": ["rf_2_pin"],
-#    "slot": 0,
-#})
-#
-#gpio_enabled_rfid_reader_4 = GpioEnabledRfidReader({
-#    "__name": "gpio_enabled_rfid_reader_2_mode_2",
-#    "rfid_reader": "fm175_2",
-#    "gpio_pins_high": ["rf_2_pin"],
-#    "gpio_pins_low": ["rf_1_pin"],
-#    "slot": 1,
-#})
-#
-#register_configurable_entity(gpio_enabled_rfid_reader_1)
-#register_configurable_entity(gpio_enabled_rfid_reader_2)
-#register_configurable_entity(gpio_enabled_rfid_reader_3)
-#register_configurable_entity(gpio_enabled_rfid_reader_4)
-#
-#readers = [
-#    gpio_enabled_rfid_reader_1,
-#    gpio_enabled_rfid_reader_2,
-#    gpio_enabled_rfid_reader_3,
-#    gpio_enabled_rfid_reader_4
-#]
+    return cast(Runtime, get_required_configurable_entity_by_name("runtime", TYPE_RUNTIME))
+
+def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
+    key_split = key.split(" ", 2)
+    name = key_split[1] if len(key_split) > 1 else key_split[0]
+    config["__name"] = name
+
+    match key_split[0]:
+        case "runtime":
+            return Runtime(config)
+        case "output_pin":
+            return OutputPin(config)
+        case "software_spi":
+            return SoftwareSPI(config)
+        case "fm175xx":
+            return Fm175xx(config)
+        case "gpio_enabled_rfid_reader":
+            return GpioEnabledRfidReader(config)
+        case "bambu_lab_tag_processor":
+            return BambuTagProcessor(config)
+        case "anycubic_tag_processor":
+            return AnycubicTagProcessor(config)
+        case "creality_tag_processor":
+            return CrealityTagProcessor(config)
+        case "openspool_tag_processor":
+            return OpenspoolTagProcessor(config)
+        case "snapmaker_tag_processor":
+            return SnapmakerTagProcessor(config)
+        case "webhook_exporter":
+            return WebhookExporter(config)
+        case "moonraker_remote_method":
+            return MoonrakerRemoteMethodController(config)
+        case _:
+            raise ValueError(f"Unknown configurable entity type: {key_split[0]}")
+
+logging.basicConfig(level=logging.DEBUG)
 
 def main():
     if len(sys.argv) < 2:
@@ -146,7 +84,11 @@ def main():
 
     json_config = json.loads(config)
 
-    run = runtime.consume_config(json_config)
+    run = consume_config(json_config)
+
+    for controller in run.controllers:
+        threading.Thread(target=controller.loop, daemon=True).start()
+
     run.loop()
     
 if __name__ == "__main__":
