@@ -72,6 +72,7 @@ class GenericFilament:
             "type": self.type,
             "modifiers": self.modifiers,
             "colors": self.colors,
+            "rgba": self.rgba,
             "colors_rgba": [to_rgba(color) for color in self.colors],
             "colors_rgba_hex": [f"{to_rgba(color):08X}" for color in self.colors],
             "diameter_mm": self.diameter_mm,

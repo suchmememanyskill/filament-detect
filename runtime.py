@@ -28,19 +28,20 @@ class Runtime(ConfigurableEntity):
         super().__init__(config, "runtime")
 
         self.auto_read_mode = bool(config.get("auto_read_mode", False))
+        self.read_interval_seconds = int(config.get("read_interval_seconds", 1))
 
-        self.readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in config.get("readers", [])]
+        self.rfid_readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in config.get("rfid_readers", [])]
         self.tag_processors : list[TagProcessor] = [cast(TagProcessor, get_required_configurable_entity_by_name(name, TYPE_TAG_PROCESSOR)) for name in config.get("tag_processors", [])]
         self.exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in config.get("exporters", [])]
 
         self.mifare_classic_processors = [processor for processor in self.tag_processors if isinstance(processor, MifareClassicTagProcessor)]
         self.mifare_ultralight_processors = [processor for processor in self.tag_processors if isinstance(processor, MifareUltralightTagProcessor)]
 
-        self.read_requested = [False] * len(self.readers)
+        self.read_requested = [False] * len(self.rfid_readers)
 
     def loop(self):
         while True:
-            for i, reader in enumerate(self.readers):
+            for i, reader in enumerate(self.rfid_readers):
                 if self.auto_read_mode or self.read_requested[i]:
                     result = self.process_reader_single(reader)
 
@@ -49,11 +50,11 @@ class Runtime(ConfigurableEntity):
                         logging.info(f"Processed tag with UID {scan_result.uid} into filament: {filament}")
 
                         for exporter in self.exporters:
-                            exporter.export_data(scan_result, filament)
+                            exporter.export_data(scan_result, filament, reader)
 
                         self.read_requested[i] = False
 
-            time.sleep(1)
+            time.sleep(self.read_interval_seconds)
         
     def process_reader_single(self, reader: RfidReader) -> tuple[ScanResult, GenericFilament]|None:
         reader.start_session()
