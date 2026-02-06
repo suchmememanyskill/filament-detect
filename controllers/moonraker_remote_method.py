@@ -5,6 +5,7 @@ import time
 import logging
 import os
 
+from controllers.moonraker_controller import MoonrakerController
 from runtime import Runtime
 
 MESSAGE_REGISTER_AGENT = {
@@ -19,53 +20,35 @@ MESSAGE_REGISTER_AGENT = {
     "id": 4656
 }
 
-MESSAGE_REGISTER_REMOTE_COMMAND = {
-    "jsonrpc": "2.0",
-    "method": "connection.register_remote_method",
-    "params": {
-        "method_name": "filament_start_detecting"
-    }
-}
-
-class MoonrakerRemoteMethodController(Controller):
+class MoonrakerOnPropertyChangeController(MoonrakerController):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.moonraker_socket_path = str(config["moonraker_socket_path"])
-        self.socket =  socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.remote_method_name = config["remote_method_name"]
         self.runtime : Runtime
 
-    def loop(self):
-        while not os.path.exists(self.moonraker_socket_path):
-            logging.warning(f"Moonraker socket not found at {self.moonraker_socket_path}, retrying in 2 seconds...")
-            time.sleep(2)
-
-        self.socket.connect(self.moonraker_socket_path)
+    def on_connect(self):
+        self.send_register_agent()
         time.sleep(0.1)
-        self.socket.sendall(json.dumps(MESSAGE_REGISTER_AGENT).encode("utf-8") + b'\x03')
-        time.sleep(0.1)
-        self.socket.sendall(json.dumps(MESSAGE_REGISTER_REMOTE_COMMAND).encode("utf-8") + b'\x03')
+        self.send_register_remote_command()
         time.sleep(0.1)
 
-        while True:
-            data = self.socket.recv(4096)
-            if not data:
-                raise Exception("Moonraker socket connection closed")
-            
-            try:
-                # TODO: It's possible we are receiving a partial message. Should probably wait til we receive \x03
-                
-                data = data.rstrip(b"\x03")
+    def on_message(self, message: dict):
+        if "method" in message and message["method"] == self.remote_method_name:
+            params = message.get("params", {})
+            channel = params.get("channel", None)
+            if channel is not None:
+                self.runtime.start_reading_tag(channel)
 
-                #with open("/tmp/last_moonraker_message.bin", "wb") as f:
-                #    f.write(data)
+    def send_register_agent(self):
+        self.send_message(MESSAGE_REGISTER_AGENT)
 
-                message_str = data.decode("utf-8").strip()
-                logging.debug(f"Received data from Moonraker socket: '{message_str}'")
-                message = json.loads(message_str)
-                if "method" in message and message["method"] == "filament_start_detecting":
-                    params = message.get("params", {})
-                    channel = params.get("channel", None)
-                    if channel is not None:
-                        self.runtime.start_reading_tag(channel)
-            except Exception as e:
-                print(f"Error processing message: {e}")
+    def send_register_remote_command(self):
+        message = {
+            "jsonrpc": "2.0",
+            "method": "connection.register_remote_method",
+            "params": {
+                "method_name": self.remote_method_name
+            }
+        }
+
+        self.send_message(message)

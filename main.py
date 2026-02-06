@@ -14,17 +14,14 @@ import sys
 import os
 import json
 import threading
+import configparser
 
-from reader.mifare_classic_reader import MifareClassicReader
-from reader.mifare_ultralight_reader import MifareUltralightReader
 from tag.anycubic.processor import AnycubicTagProcessor
 from tag.bambu.processor import BambuTagProcessor
 from tag.creality.processor import CrealityTagProcessor
-from tag.mifare_classic_tag_processor import MifareClassicTagProcessor
-from tag.mifare_ultralight_tag_processor import MifareUltralightTagProcessor
 from tag.openspool.processor import OpenspoolTagProcessor
 from tag.snapmaker.processor import SnapmakerTagProcessor
-from tag.tag_types import TagType
+from controllers.moonraker_on_property_change import MoonrakerOnPropertyChangeController
 
 def consume_config(config: dict) -> Runtime:
     for key, value in config.items():
@@ -63,6 +60,8 @@ def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
             return WebhookExporter(config)
         case "moonraker_remote_method":
             return MoonrakerRemoteMethodController(config)
+        case "moonraker_on_property_change":
+            return MoonrakerOnPropertyChangeController(config)
         case _:
             raise ValueError(f"Unknown configurable entity type: {key_split[0]}")
 
@@ -79,12 +78,23 @@ def main():
         logging.error(f"Config file does not exist: {config_file}")
         sys.exit(1)
     
-    with open(config_file, "r") as f:
-        config = f.read()
+    if config_file.endswith(".json"):
+        with open(config_file, "r") as f:
+            config = f.read()
 
-    json_config = json.loads(config)
+        json_config = json.loads(config)
 
-    run = consume_config(json_config)
+        run = consume_config(json_config)
+    #elif config_file.endswith(".ini"):
+    #    parser = configparser.ConfigParser()
+    #    parser.read(config_file)
+#
+    #    config = {section: dict(parser.items(section)) for section in parser.sections()}
+#
+    #    run = consume_config(config)
+    else:
+        logging.error("Unsupported config file format, only .json is supported")
+        sys.exit(1)
 
     for controller in run.controllers:
         threading.Thread(target=controller.loop, daemon=True).start()
