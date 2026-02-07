@@ -85,7 +85,7 @@ def main():
         json_config = json.loads(config)
 
         run = consume_config(json_config)
-    elif config_file.endswith(".ini"):
+    elif config_file.endswith(".ini") or config_file.endswith(".cfg"):
         parser = configparser.ConfigParser(interpolation=None)
         parser.read(config_file)
 

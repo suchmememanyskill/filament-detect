@@ -11,18 +11,22 @@ class MoonrakerController(Controller):
     def __init__(self, config: dict):
         super().__init__(config)
         self.moonraker_socket_path = str(config["moonraker_socket_path"])
-        self.socket =  socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket : socket.socket|None = None
         self.buffer = b""
+    
+    def __loop_inner(self):
+        if self.socket is not None:
+            self.socket.close()
 
-    def loop(self):
-        while not os.path.exists(self.moonraker_socket_path):
-            logging.warning(f"Moonraker socket not found at {self.moonraker_socket_path}, retrying in 2 seconds...")
-            time.sleep(2)
+        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        if not os.path.exists(self.moonraker_socket_path):
+            logging.warning(f"Moonraker socket not found at {self.moonraker_socket_path}")
+            return
 
         self.socket.connect(self.moonraker_socket_path)
         time.sleep(0.1)
         self.on_connect()
-
+        
         while True:
             data = self.socket.recv(4096)
             if not data:
@@ -38,6 +42,16 @@ class MoonrakerController(Controller):
                 except json.JSONDecodeError as e:
                     logging.error(f"Failed to decode JSON message: {e}")
                     continue
+
+    def loop(self):
+        while True:
+            try:
+                self.__loop_inner()
+            except Exception as e:
+                logging.error(f"Error in MoonrakerController loop: {e}")
+
+            logging.info("Retrying connection in 5 seconds...")
+            time.sleep(5)
 
     def send_message(self, message: Any):
         message_str = json.dumps(message)
