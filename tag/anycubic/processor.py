@@ -53,7 +53,7 @@ class AnycubicTagProcessor(MifareUltralightTagProcessor):
 
         return GenericFilament(
             source_processor=self.name,
-            unique_id=f"Anycubic_{sku}", # TODO: Improve unique ID
+            unique_id=GenericFilament.generate_unique_id("Anycubic", sku, brand, filament_type, argb, filament_length_m),
             manufacturer=brand,
             type=filament_types[0] if filament_types else "PLA",
             modifiers=filament_types[1:],

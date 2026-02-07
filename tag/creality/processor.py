@@ -81,7 +81,7 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
 
         return GenericFilament(
             source_processor=self.name,
-            unique_id=f"Creality_{scan_result.uid.hex(':').upper()}_{serial}_{batch}_{year:04d}{month:02d}{day:02d}_{supplier}_{material}_{color:06X}",
+            unique_id=GenericFilament.generate_unique_id("Creality", data_str),
             manufacturer="Creality",
             type=extra_data.type,
             modifiers=extra_data.modifiers,

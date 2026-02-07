@@ -76,7 +76,7 @@ class OpenspoolTagProcessor(NdefTagProcessor):
 
             return GenericFilament(
                 source_processor=self.name,
-                unique_id=f"Openspool_{brand}_{main_type}_{subtype}_{color_hex:06X}",
+                unique_id=GenericFilament.generate_unique_id("OpenSpool", brand, main_type, subtype, color_argb),
                 manufacturer=brand,
                 type=main_type,
                 modifiers=[subtype] if subtype else [],

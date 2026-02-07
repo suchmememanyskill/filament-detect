@@ -115,7 +115,7 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
 
         return GenericFilament(
             source_processor=self.name,
-            unique_id=f"Snapmaker_{scan_result.uid.hex(':').upper()}_{card_uid.hex(':').upper()}_{sku}",
+            unique_id=GenericFilament.generate_unique_id("Snapmaker", vendor, manufacturer, main_type, sub_type, argb_color, weight_grams, sku, tray),
             manufacturer=vendor,
             type=main_type,
             modifiers=[sub_type],

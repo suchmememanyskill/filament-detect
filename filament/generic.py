@@ -1,3 +1,5 @@
+import hashlib
+
 def to_rgba(argb: int) -> int:
     a = (argb >> 24) & 0xFF
     r = (argb >> 16) & 0xFF
@@ -38,6 +40,14 @@ class GenericFilament:
         self.drying_temp_c = drying_temp_c
         self.drying_time_hours = drying_time_hours
         self.manufacturing_date = manufacturing_date
+
+        if "CF" in self.modifiers:
+            self.type += "-CF"
+            self.modifiers.remove("CF")
+        
+        if "GF" in self.modifiers:
+            self.type += "-GF"
+            self.modifiers.remove("GF")
 
     def pretty_text(self) -> str:
         modifiers = ' '.join(self.modifiers)
@@ -84,3 +94,9 @@ class GenericFilament:
             "drying_time_hours": self.drying_time_hours,
             "manufacturing_date": self.manufacturing_date
         }
+    
+    @staticmethod
+    def generate_unique_id(*args) -> str:
+        strings = "|".join([str(arg) for arg in args])
+        hash = hashlib.sha256(strings.encode('utf-8')).hexdigest()
+        return hash
