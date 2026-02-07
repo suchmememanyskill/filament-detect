@@ -20,10 +20,10 @@ MESSAGE_REGISTER_AGENT = {
     "id": 4656
 }
 
-class MoonrakerOnPropertyChangeController(MoonrakerController):
+class MoonrakerRemoteMethodController(MoonrakerController):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.remote_method_name = config["remote_method_name"]
+        self.remote_method_name = str(config["remote_method_name"])
         self.runtime : Runtime
 
     def on_connect(self):
@@ -35,9 +35,9 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
     def on_message(self, message: dict):
         if "method" in message and message["method"] == self.remote_method_name:
             params = message.get("params", {})
-            channel = params.get("channel", None)
-            if channel is not None:
-                self.runtime.start_reading_tag(channel)
+            slot = params.get("slot", None)
+            if slot is not None:
+                self.runtime.start_reading_tag(slot)
 
     def send_register_agent(self):
         self.send_message(MESSAGE_REGISTER_AGENT)

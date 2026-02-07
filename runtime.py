@@ -23,11 +23,11 @@ class Runtime(ConfigurableEntity):
         self.read_interval_seconds = int(config.get("read_interval_seconds", 1))
         self.read_retries = int(config.get("retries", 3))
 
-        self.rfid_readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in config.get("rfid_readers", [])]
-        self.tag_processors : list[TagProcessor] = [cast(TagProcessor, get_required_configurable_entity_by_name(name, TYPE_TAG_PROCESSOR)) for name in config.get("tag_processors", [])]
-        self.exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in config.get("exporters", [])]
-        self.error_exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in config.get("error_exporters", [])]
-        self.controllers : list[Controller] = [cast(Controller, get_required_configurable_entity_by_name(name, TYPE_CONTROLLER)) for name in config.get("controllers", [])]
+        self.rfid_readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in self.get_str_array_from_config("rfid_readers", True)]
+        self.tag_processors : list[TagProcessor] = [cast(TagProcessor, get_required_configurable_entity_by_name(name, TYPE_TAG_PROCESSOR)) for name in self.get_str_array_from_config("tag_processors", True)]
+        self.exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in self.get_str_array_from_config("exporters", True)]
+        self.error_exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in self.get_str_array_from_config("error_exporters", True)]
+        self.controllers : list[Controller] = [cast(Controller, get_required_configurable_entity_by_name(name, TYPE_CONTROLLER)) for name in self.get_str_array_from_config("controllers", True)]
 
         for controller in self.controllers:
             controller.runtime = self # type: ignore

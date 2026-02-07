@@ -15,9 +15,9 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
     def __init__(self, config: dict):
         super().__init__(config)
         self.runtime : Runtime
-        self.track_object = config["track_object"]
-        self.track_field = config["track_field"]
-        self.get_index_from_field = config["get_index_from_field"]
+        self.track_object = str(config["track_object"])
+        self.track_field = str(config["track_field"])
+        self.get_index_from_field = str(config["get_index_from_field"])
         self.klippy_ready = False
         self.current_value = None
 
@@ -30,6 +30,7 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
         self.send_server_query()
 
     def on_message(self, message: dict):
+        #logging.debug(f"Received message: {message}")
         if message is None:
             return
         
@@ -40,31 +41,32 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
                 if klippy_state is not None:
                     self.klippy_ready = klippy_state == "ready"
                     if self.klippy_ready:
-                        logging.info("Klippy is ready, sending subscribe command...")
+                        logging.debug("Klippy is ready, sending subscribe command...")
                         self.send_subscribe_command()
             elif message["id"] == MESSAGE_ID_SUBSCRIBE:
                 result = message.get("result", {})
                 status = result.get("status", {})
-                print_task_config = status.get("print_task_config", {})
-                filament_exist = print_task_config.get("filament_exist", None)
-                if filament_exist is not None:
-                    self.current_value = filament_exist
+                tracked_object = status.get(self.track_object, {})
+                tracked_field = tracked_object.get(self.track_field, None)
+                if tracked_field is not None:
+                    self.current_value = tracked_field
+                    logging.info(f"Initial value for tracked field set to: {self.current_value}")
         elif "method" in message:
             if message["method"] == "notify_klippy_disconnected" or message["method"] == "notify_klippy_shutdown":
                 logging.warning("Klippy disconnected, resetting state")
                 self.klippy_ready = False
                 self.current_value = None
             elif message["method"] == "notify_klippy_ready":
-                logging.info("Klippy is ready, sending subscribe command...")
+                logging.debug("Klippy is ready, sending subscribe command...")
                 self.klippy_ready = True
                 self.send_subscribe_command()
             elif message["method"] == "notify_status_update":
                 params = message.get("params", {})
                 objects = params[0] if len(params) > 0 else {}
-                print_task_config = objects.get("print_task_config", {})
-                filament_exist = print_task_config.get("filament_exist", None)
-                self.handle_diff(filament_exist)
-            
+                tracked_object = objects.get(self.track_object, {})
+                tracked_field = tracked_object.get(self.track_field, None)
+                logging.debug(f"Received status update: {tracked_field}")
+                self.handle_diff(tracked_field)
 
     def send_server_query(self):
         query_message = {

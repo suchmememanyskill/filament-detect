@@ -88,10 +88,17 @@
     "webhook_exporter error_exporter": {
         "method": "POST",
         "url": "http://localhost/printer/gcode/script",
-        "body_json_template": "{\"script\": \"FILAMENT_DT_CLEAR CHANNEL={{reader.slot}}\"}"
+        "body_json_template": "{\"script\": \"SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={{reader.slot}} VENDOR=NONE FILAMENT_TYPE=NONE FILAMENT_SUBTYPE=NONE FILAMENT_COLOR=0\"}"
     },
     "moonraker_remote_method": {
-        "moonraker_socket_path": "/oem/printer_data/comms/moonraker.sock"
+        "moonraker_socket_path": "/oem/printer_data/comms/moonraker.sock",
+        "remote_method_name": "filament_detect.start_scan"
+    },
+    "moonraker_on_property_change": {
+        "moonraker_socket_path": "/oem/printer_data/comms/moonraker.sock",
+        "track_object": "print_task_config",
+        "track_field": "filament_exist",
+        "get_index_from_field": "array"
     },
     "runtime": {
         "rfid_readers": [
@@ -114,7 +121,8 @@
             "error_exporter"
         ],
         "controllers": [
-            "moonraker_remote_method"
+            "moonraker_remote_method",
+            "moonraker_on_property_change"
         ],
         "auto_read_mode": false,
         "retries": 3,

@@ -11,8 +11,8 @@ from tag.mifare_classic_tag_processor import TagAuthentication
 class GpioEnabledRfidReader(MifareClassicReader, MifareUltralightReader):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.gpio_pins_high = config.get("gpio_pins_high", [])
-        self.gpio_pins_low = config.get("gpio_pins_low", [])
+        self.gpio_pins_high = self.get_str_array_from_config("gpio_pins_high", True)
+        self.gpio_pins_low = self.get_str_array_from_config("gpio_pins_low", True)
         self.rfid_reader = cast(RfidReader, get_required_configurable_entity_by_name(config["rfid_reader"], TYPE_RFID_READER))
 
         self.gpio_high : list[OutputPin] = []

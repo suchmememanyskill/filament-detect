@@ -85,13 +85,13 @@ def main():
         json_config = json.loads(config)
 
         run = consume_config(json_config)
-    #elif config_file.endswith(".ini"):
-    #    parser = configparser.ConfigParser()
-    #    parser.read(config_file)
-#
-    #    config = {section: dict(parser.items(section)) for section in parser.sections()}
-#
-    #    run = consume_config(config)
+    elif config_file.endswith(".ini"):
+        parser = configparser.ConfigParser()
+        parser.read(config_file)
+
+        config = {str(section): dict(parser.items(section)) for section in parser.sections()}
+
+        run = consume_config(config)
     else:
         logging.error("Unsupported config file format, only .json is supported")
         sys.exit(1)

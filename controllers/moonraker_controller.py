@@ -10,7 +10,7 @@ import time
 class MoonrakerController(Controller):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.moonraker_socket_path = config["moonraker_socket_path"]
+        self.moonraker_socket_path = str(config["moonraker_socket_path"])
         self.socket =  socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.buffer = b""
 
