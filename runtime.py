@@ -19,7 +19,7 @@ class Runtime(ConfigurableEntity):
         config["__name"] = "runtime"
         super().__init__(config, "runtime")
 
-        self.auto_read_mode = bool(config.get("auto_read_mode", False))
+        self.auto_read_mode = str(config.get("auto_read_mode", "false")).lower() == "true"
         self.read_interval_seconds = int(config.get("read_interval_seconds", 1))
         self.read_retries = int(config.get("retries", 3))
 
@@ -61,7 +61,7 @@ class Runtime(ConfigurableEntity):
 
                         self.read_retries_left[i] = 0
 
-                    elif self.read_retries_left[i] <= 0:
+                    elif self.read_retries_left[i] <= 0 and not self.auto_read_mode:
                         logging.warning(f"Failed to read from reader {reader.name}, no retries left")
                         self.read_retries_left[i] = 0
 

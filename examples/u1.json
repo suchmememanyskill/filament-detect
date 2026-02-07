@@ -126,6 +126,6 @@
         ],
         "auto_read_mode": false,
         "retries": 3,
-        "read_interval_seconds": 2
+        "read_interval_seconds": 1
     }
 }

@@ -8,7 +8,7 @@ class OutputPin(ConfigurableEntity):
         super().__init__(config, TYPE_OUTPUT_PIN)
         self.gpio_device = str(config["gpio_device"])
         self.line_offset = int(config["line"])
-        self.value = bool(config.get("default_high", False))
+        self.value = str(config.get("default_high", "false")).lower() == "true"
         
         self.chip = gpiod.Chip(f"/dev/gpiochip{self.gpio_device}")
         self.pin = self.chip.get_line(self.line_offset)
