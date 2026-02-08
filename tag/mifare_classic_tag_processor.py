@@ -20,7 +20,7 @@ class MifareClassicTagProcessor(TagProcessor):
         raise NotImplementedError("Subclasses must implement this method")
     
     def load_key_from_config(self, key_name : str = "key") -> str|None:
-        key = self.__config.get(key_name, None)
+        key = self.config.get(key_name, None)
         if not key:
             return None
     
