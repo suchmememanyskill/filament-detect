@@ -12,6 +12,13 @@ class BambuTagProcessor(MifareClassicTagProcessor):
     def __init__(self, config : dict):
         super().__init__(config)
 
+        key = self.load_hex_key_from_config(Constants.BAMBU_SALT_HASH)
+
+        if key is None:
+            raise ValueError("BambuTagProcessor requires a valid hex key in the config with the correct hash")
+        
+        self.key = key
+
     def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:
             raise ValueError("BambuTagProcessor can only authenticate Mifare Classic 1K tags")
@@ -120,15 +127,10 @@ class BambuTagProcessor(MifareClassicTagProcessor):
         )
 
     def __hkdf_create_key(self, uid : bytes) -> TagAuthentication:
-        master = bytes([
-            0x9a, 0x75, 0x9c, 0xf2, 0xc4, 0xf7, 0xca, 0xff,
-            0x22, 0x2c, 0xb9, 0x76, 0x9b, 0x41, 0xbc, 0x96
-        ])
-
         hkdf = HKDF(
             algorithm=hashes.SHA256(),
             length=6 * 16,
-            salt=master,
+            salt=self.key,
             info=b"RFID-A\0",
         )
 

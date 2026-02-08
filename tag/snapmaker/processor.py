@@ -15,6 +15,13 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
     def __init__(self, config : dict):
         super().__init__(config)
 
+        key = self.load_hex_key_from_config(Constants.SNAPMAKER_SALT_HASH)
+
+        if key is None:
+            raise ValueError("SnapmakerTagProcessor requires a valid key in the config with the correct hash")
+
+        self.key = key
+
     def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:
             raise ValueError("SnapmakerTagProcessor can only authenticate Mifare Classic 1K tags")
@@ -22,8 +29,8 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
         ikm = scan_result.uid[0:4]
         
         return TagAuthentication(
-            self.__hkdf_create_key(ikm, "Snapmaker_qwertyuiop[,.;]".encode(), 'a'),
-            self.__hkdf_create_key(ikm, "Snapmaker_qwertyuiop[,.;]_1q2w3e".encode(), 'b')
+            self.__hkdf_create_key(ikm, self.key[:25], 'a'),
+            self.__hkdf_create_key(ikm, self.key, 'b')
         )
 
     def process_tag(self, scan_result : ScanResult, data : bytes) -> GenericFilament | None:

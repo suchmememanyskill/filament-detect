@@ -11,6 +11,18 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
     def __init__(self, config : dict):
         super().__init__(config)
 
+        key = self.load_hex_key_from_config(Constants.CREALITY_SALT_HASH)
+
+        if key is None:
+            raise ValueError("CrealityTagProcessor requires a valid hex key in the config with the correct hash")
+        
+        self.key = key
+
+        self.encryption_key = self.load_hex_key_from_config(Constants.CREALITY_ENCRYPTION_KEY_HASH, "encryption_key")
+
+        if self.encryption_key is None:
+            logging.warning("No valid encryption key found in config for CrealityTagProcessor, will attempt to process tags without decryption")
+
     def authenticate_tag(self, scan_result) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:
             raise ValueError("CrealityTagProcessor can only authenticate Mifare Classic 1K tags")
@@ -29,9 +41,12 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
         is_encrypted = not (test1 == 0x32 and test2 in [0x30, 0x23])
 
         if is_encrypted:
-            key = b"H@CFkRnz@KAtBJp2"
+            if self.encryption_key is None:
+                logging.warning("Tag data appears to be encrypted but no valid encryption key is configured for CrealityTagProcessor")
+                return None
+
             cipher = Cipher(
-                algorithms.AES(key),
+                algorithms.AES(self.encryption_key),
                 modes.ECB(),
                 backend=default_backend()
             )
@@ -100,11 +115,10 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
         if len(uid) != 4:
             raise ValueError("UID must be 4 bytes for CrealityTagProcessor")
 
-        master = b"q3bu^t1nqfZ(pf$1"
         plaintext = uid + uid + uid + uid
         
         cipher = Cipher(
-            algorithms.AES(master),
+            algorithms.AES(self.key),
             modes.ECB(),
             backend=default_backend()
         )
