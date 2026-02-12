@@ -21,6 +21,7 @@ from tag.bambu.processor import BambuTagProcessor
 from tag.creality.processor import CrealityTagProcessor
 from tag.openspool.processor import OpenspoolTagProcessor
 from tag.snapmaker.processor import SnapmakerTagProcessor
+from tag.tigertag.processor import TigerTagProcessor
 from controllers.moonraker_on_property_change import MoonrakerOnPropertyChangeController
 
 def consume_config(config: dict) -> Runtime:
@@ -56,6 +57,8 @@ def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
             return OpenspoolTagProcessor(config)
         case "snapmaker_tag_processor":
             return SnapmakerTagProcessor(config)
+        case "tigertag_tag_processor":
+            return TigerTagProcessor(config)
         case "webhook_exporter":
             return WebhookExporter(config)
         case "moonraker_remote_method":
@@ -71,13 +74,13 @@ def main():
     if len(sys.argv) < 2:
         logging.error("No config file provided")
         sys.exit(1)
-    
+
     config_file = sys.argv[1]
 
     if not os.path.exists(config_file):
         logging.error(f"Config file does not exist: {config_file}")
         sys.exit(1)
-    
+
     if config_file.endswith(".json"):
         with open(config_file, "r") as f:
             config = f.read()
@@ -100,6 +103,6 @@ def main():
         threading.Thread(target=controller.loop, daemon=True).start()
 
     run.loop()
-    
+
 if __name__ == "__main__":
     main()
