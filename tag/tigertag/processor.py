@@ -1,0 +1,132 @@
+from filament import GenericFilament
+from reader.scan_result import ScanResult
+from tag.mifare_ultralight_tag_processor import MifareUltralightTagProcessor
+from tag.tag_types import TagType
+from . import constants as Constants
+import struct
+import logging
+from datetime import datetime, timezone
+
+class TigerTagProcessor(MifareUltralightTagProcessor):
+    def __init__(self, config: dict):
+        super().__init__(config)
+
+    def process_tag(self, scan_result: ScanResult, data: bytes) -> GenericFilament | None:
+        if scan_result.tag_type != TagType.MifareUltralight:
+            return None
+
+        if len(data) < Constants.USER_DATA_BYTE_OFFSET + Constants.OFF_TIMESTAMP + 4:
+            return None
+
+        user_data = data[Constants.USER_DATA_BYTE_OFFSET:]
+
+        tag_id = struct.unpack_from('>I', user_data, Constants.OFF_TAG_ID)[0]
+
+        if tag_id not in Constants.TIGERTAG_VALID_DATA_IDS:
+            return None
+
+        logging.debug("TigerTag: Detected format ID 0x%08X (%s)",
+                       tag_id, Constants.TIGERTAG_VERSION_IDS.get(tag_id, "Unknown"))
+
+        return self.__parse_tigertag(scan_result, user_data, tag_id)
+
+    def __parse_tigertag(self, scan_result: ScanResult, user_data: bytes, tag_id: int) -> GenericFilament | None:
+        try:
+            product_id = struct.unpack_from('>I', user_data, Constants.OFF_PRODUCT_ID)[0]
+            material_id = struct.unpack_from('>H', user_data, Constants.OFF_MATERIAL_ID)[0]
+            aspect1_id = user_data[Constants.OFF_ASPECT1_ID]
+            aspect2_id = user_data[Constants.OFF_ASPECT2_ID]
+            type_id = user_data[Constants.OFF_TYPE_ID]
+            diameter_id = user_data[Constants.OFF_DIAMETER_ID]
+            brand_id = struct.unpack_from('>H', user_data, Constants.OFF_BRAND_ID)[0]
+
+            r = user_data[Constants.OFF_COLOR_RGBA]
+            g = user_data[Constants.OFF_COLOR_RGBA + 1]
+            b = user_data[Constants.OFF_COLOR_RGBA + 2]
+            a = user_data[Constants.OFF_COLOR_RGBA + 3]
+            argb_color = (a << 24) | (r << 16) | (g << 8) | b
+
+            weight_bytes = user_data[Constants.OFF_WEIGHT:Constants.OFF_WEIGHT + 3]
+            measure_value = (weight_bytes[0] << 16) | (weight_bytes[1] << 8) | weight_bytes[2]
+            unit_id = user_data[Constants.OFF_UNIT_ID]
+
+            temp_min = struct.unpack_from('>H', user_data, Constants.OFF_TEMP_MIN)[0]
+            temp_max = struct.unpack_from('>H', user_data, Constants.OFF_TEMP_MAX)[0]
+            dry_temp = user_data[Constants.OFF_DRY_TEMP]
+            dry_time = user_data[Constants.OFF_DRY_TIME]
+
+            timestamp_raw = struct.unpack_from('>I', user_data, Constants.OFF_TIMESTAMP)[0]
+
+            material_label = Constants.MATERIAL_ID_TO_LABEL.get(material_id, f"Unknown({material_id})")
+            brand_name = Constants.BRAND_ID_TO_NAME.get(brand_id, f"Unknown({brand_id})")
+            diameter_mm = Constants.DIAMETER_ID_TO_MM.get(diameter_id, 1.75)
+            aspect1_label = Constants.ASPECT_ID_TO_LABEL.get(aspect1_id, "")
+            aspect2_label = Constants.ASPECT_ID_TO_LABEL.get(aspect2_id, "")
+            unit_label = Constants.UNIT_ID_TO_LABEL.get(unit_id, "g")
+
+            weight_grams = self.__convert_to_grams(measure_value, unit_id)
+            manufacturing_date = self.__timestamp_to_date(timestamp_raw)
+
+            modifiers = []
+            if aspect1_label and aspect1_label not in ("Basic", "None", ""):
+                modifiers.append(aspect1_label)
+            if aspect2_label and aspect2_label not in ("Basic", "None", ""):
+                modifiers.append(aspect2_label)
+
+            logging.debug("Found TigerTag filament:")
+            logging.debug("  Tag ID: 0x%08X (%s)", tag_id, Constants.TIGERTAG_VERSION_IDS.get(tag_id, "Unknown"))
+            logging.debug("  Product ID: 0x%08X", product_id)
+            logging.debug("  Material: %s (ID: %d)", material_label, material_id)
+            logging.debug("  Brand: %s (ID: %d)", brand_name, brand_id)
+            logging.debug("  Diameter: %.2f mm (ID: %d)", diameter_mm, diameter_id)
+            logging.debug("  Aspect1: %s, Aspect2: %s", aspect1_label, aspect2_label)
+            logging.debug("  Color (ARGB): 0x%08X", argb_color)
+            logging.debug("  Measure: %d %s (%.1f g)", measure_value, unit_label, weight_grams)
+            logging.debug("  Nozzle Temp: %d-%d °C", temp_min, temp_max)
+            logging.debug("  Dry: %d °C for %d hours", dry_temp, dry_time)
+            logging.debug("  Timestamp: %d (%s)", timestamp_raw, manufacturing_date)
+
+            return GenericFilament(
+                source_processor=self.name,
+                unique_id=GenericFilament.generate_unique_id(
+                    "TigerTag", brand_name, material_label, argb_color,
+                    product_id, timestamp_raw
+                ),
+                manufacturer=brand_name,
+                type=material_label,
+                modifiers=modifiers,
+                colors=[argb_color],
+                diameter_mm=diameter_mm,
+                weight_grams=weight_grams,
+                hotend_min_temp_c=float(temp_min),
+                hotend_max_temp_c=float(temp_max),
+                bed_temp_c=0.0,
+                drying_temp_c=float(dry_temp),
+                drying_time_hours=float(dry_time),
+                manufacturing_date=manufacturing_date,
+            )
+
+        except Exception as e:
+            logging.exception("TigerTag: Failed to parse tag data: %s", e)
+            return None
+
+    def __convert_to_grams(self, value: int, unit_id: int) -> float:
+        match unit_id:
+            case 1 | 21:
+                return float(value)
+            case 2 | 35:
+                return value * 1000.0
+            case 10:
+                return value / 1000.0
+            case _:
+                return float(value)
+
+    def __timestamp_to_date(self, timestamp: int) -> str:
+        if timestamp == 0:
+            return "0001-01-01"
+        try:
+            unix_ts = timestamp + Constants.TIGERTAG_EPOCH_OFFSET
+            dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc)
+            return dt.strftime("%Y-%m-%d")
+        except (OSError, OverflowError, ValueError):
+            return "0001-01-01"
