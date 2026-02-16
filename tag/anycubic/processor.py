@@ -3,6 +3,7 @@ from reader.scan_result import ScanResult
 from tag.mifare_ultralight_tag_processor import MifareUltralightTagProcessor
 from tag.tag_types import TagType
 import struct
+import tag.binary as binary
 
 # Adapted from https://github.com/DnG-Crafts/ACE-RFID
 
@@ -32,14 +33,14 @@ class AnycubicTagProcessor(MifareUltralightTagProcessor):
 
         argb = (a << 24) | (r << 16) | (g << 8) | b
 
-        extruder_min_temp_c = self.__extract_uint16_le(data, 0x60)
-        extruder_max_temp_c = self.__extract_uint16_le(data, 0x62)
+        extruder_min_temp_c = binary.extract_uint16_le(data, 0x60)
+        extruder_max_temp_c = binary.extract_uint16_le(data, 0x62)
 
-        heated_bed_min_temp_c = self.__extract_uint16_le(data, 0x74)
-        heated_bed_max_temp_c = self.__extract_uint16_le(data, 0x76)
+        heated_bed_min_temp_c = binary.extract_uint16_le(data, 0x74)
+        heated_bed_max_temp_c = binary.extract_uint16_le(data, 0x76)
 
-        filament_diameter_mm = float(self.__extract_uint16_le(data, 0x78)) / 100.0
-        filament_length_m = self.__extract_uint16_le(data, 0x7A)
+        filament_diameter_mm = float(binary.extract_uint16_le(data, 0x78)) / 100.0
+        filament_length_m = binary.extract_uint16_le(data, 0x7A)
 
         match filament_length_m:
             case 330:
@@ -67,7 +68,3 @@ class AnycubicTagProcessor(MifareUltralightTagProcessor):
             drying_time_hours=0,
             manufacturing_date="0001-01-01"
         )
-
-    def __extract_uint16_le(self, data: bytes, pos: int) -> int:
-        """Extract a little-endian uint16 from the data."""
-        return struct.unpack('<H', data[pos:pos+2])[0]

@@ -16,12 +16,13 @@ import json
 import threading
 import configparser
 
-from tag.anycubic.processor import AnycubicTagProcessor
-from tag.bambu.processor import BambuTagProcessor
-from tag.creality.processor import CrealityTagProcessor
-from tag.openspool.processor import OpenspoolTagProcessor
-from tag.snapmaker.processor import SnapmakerTagProcessor
-from tag.tigertag.processor import TigerTagProcessor
+from tag.anycubic import AnycubicTagProcessor
+from tag.bambu import BambuTagProcessor
+from tag.creality import CrealityTagProcessor
+from tag.elegoo import ElegooTagProcessor
+from tag.openspool import OpenspoolTagProcessor
+from tag.snapmaker import SnapmakerTagProcessor
+from tag.tigertag import TigerTagProcessor
 from controllers.moonraker_on_property_change import MoonrakerOnPropertyChangeController
 
 def consume_config(config: dict) -> Runtime:
@@ -59,6 +60,8 @@ def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
             return SnapmakerTagProcessor(config)
         case "tigertag_tag_processor":
             return TigerTagProcessor(config)
+        case "elegoo_tag_processor":
+            return ElegooTagProcessor(config)
         case "webhook_exporter":
             return WebhookExporter(config)
         case "moonraker_remote_method":

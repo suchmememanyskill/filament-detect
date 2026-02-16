@@ -20,7 +20,7 @@ class Runtime(ConfigurableEntity):
         super().__init__(config, "runtime")
 
         self.auto_read_mode = str(config.get("auto_read_mode", "false")).lower() == "true"
-        self.read_interval_seconds = int(config.get("read_interval_seconds", 1))
+        self.read_interval_seconds = float(config.get("read_interval_seconds", 1))
         self.read_retries = int(config.get("retries", 3))
 
         self.rfid_readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in self.get_str_array_from_config("rfid_readers", True)]

@@ -7,6 +7,7 @@ from tag.tag_types import TagType
 from . import constants as Constants
 import struct
 import logging
+import tag.binary as binary
 
 class BambuTagProcessor(MifareClassicTagProcessor):
     def __init__(self, config : dict):
@@ -31,14 +32,14 @@ class BambuTagProcessor(MifareClassicTagProcessor):
         
         # https://github.com/Bambu-Research-Group/RFID-Tag-Guide/blob/main/BambuLabRfid.md
         # Extract filament type (Block 2)
-        filament_type = self.__extract_string(data, Constants.FILAMENT_TYPE_POS, Constants.FILAMENT_TYPE_LEN)
+        filament_type = binary.extract_string(data, Constants.FILAMENT_TYPE_POS, Constants.FILAMENT_TYPE_LEN)
         
         # Extract detailed filament type (Block 4)
-        detailed_type = self.__extract_string(data, Constants.DETAILED_FILAMENT_TYPE_POS, Constants.DETAILED_FILAMENT_TYPE_LEN)
+        detailed_type = binary.extract_string(data, Constants.DETAILED_FILAMENT_TYPE_POS, Constants.DETAILED_FILAMENT_TYPE_LEN)
         
         # Extract material IDs (Block 1)
-        material_variant_id = self.__extract_string(data, Constants.MATERIAL_VARIANT_ID_POS, Constants.MATERIAL_VARIANT_ID_LEN)
-        material_id = self.__extract_string(data, Constants.MATERIAL_ID_POS, Constants.MATERIAL_ID_LEN)
+        material_variant_id = binary.extract_string(data, Constants.MATERIAL_VARIANT_ID_POS, Constants.MATERIAL_VARIANT_ID_LEN)
+        material_id = binary.extract_string(data, Constants.MATERIAL_ID_POS, Constants.MATERIAL_ID_LEN)
         
         # Extract color (Block 5) - RGBA format
         r = data[Constants.COLOR_RGBA_POS]
@@ -48,34 +49,34 @@ class BambuTagProcessor(MifareClassicTagProcessor):
         argb_color = (a << 24) | (r << 16) | (g << 8) | b
         
         # Extract spool weight (Block 5) - uint16 LE in grams
-        weight_grams = self.__extract_uint16_le(data, Constants.SPOOL_WEIGHT_POS)
+        weight_grams = binary.extract_uint16_le(data, Constants.SPOOL_WEIGHT_POS)
         
         # Extract filament diameter (Block 5) - float LE in mm
-        diameter_mm = self.__extract_float_le(data, Constants.FILAMENT_DIAMETER_POS)
+        diameter_mm = binary.extract_float_le(data, Constants.FILAMENT_DIAMETER_POS)
         
         # Extract temperatures and drying info (Block 6)
-        drying_temp = self.__extract_uint16_le(data, Constants.DRYING_TEMP_POS)
-        drying_time = self.__extract_uint16_le(data, Constants.DRYING_TIME_POS)
-        bed_temp_type = self.__extract_uint16_le(data, Constants.BED_TEMP_TYPE_POS)
-        bed_temp = self.__extract_uint16_le(data, Constants.BED_TEMP_POS)
-        hotend_max_temp = self.__extract_uint16_le(data, Constants.HOTEND_MAX_TEMP_POS)
-        hotend_min_temp = self.__extract_uint16_le(data, Constants.HOTEND_MIN_TEMP_POS)
+        drying_temp = binary.extract_uint16_le(data, Constants.DRYING_TEMP_POS)
+        drying_time = binary.extract_uint16_le(data, Constants.DRYING_TIME_POS)
+        bed_temp_type = binary.extract_uint16_le(data, Constants.BED_TEMP_TYPE_POS)
+        bed_temp = binary.extract_uint16_le(data, Constants.BED_TEMP_POS)
+        hotend_max_temp = binary.extract_uint16_le(data, Constants.HOTEND_MAX_TEMP_POS)
+        hotend_min_temp = binary.extract_uint16_le(data, Constants.HOTEND_MIN_TEMP_POS)
         
         # Extract tray UID (Block 9)
         tray_uid = data[Constants.TRAY_UID_POS:Constants.TRAY_UID_POS+Constants.TRAY_UID_LEN]
         
         # Extract production date/time (Block 12)
-        production_datetime = self.__extract_string(data, Constants.PRODUCTION_DATETIME_POS, Constants.PRODUCTION_DATETIME_LEN)
+        production_datetime = binary.extract_string(data, Constants.PRODUCTION_DATETIME_POS, Constants.PRODUCTION_DATETIME_LEN)
         
         # Extract extra color info (Block 16)
-        format_identifier = self.__extract_uint16_le(data, Constants.FORMAT_IDENTIFIER_POS)
-        color_count = self.__extract_uint16_le(data, Constants.COLOR_COUNT_POS)
+        format_identifier = binary.extract_uint16_le(data, Constants.FORMAT_IDENTIFIER_POS)
+        color_count = binary.extract_uint16_le(data, Constants.COLOR_COUNT_POS)
         
         # Build colors list
         colors = [argb_color]
         if format_identifier == Constants.FORMAT_COLOR_INFO and color_count > 1:
             # Extract second color (ABGR format - reverse of ARGB)
-            second_color_abgr = self.__extract_uint32_le(data, Constants.SECOND_COLOR_POS)
+            second_color_abgr = binary.extract_uint32_le(data, Constants.SECOND_COLOR_POS)
             # Convert ABGR to ARGB
             a2 = (second_color_abgr >> 24) & 0xFF
             b2 = (second_color_abgr >> 16) & 0xFF
@@ -140,23 +141,6 @@ class BambuTagProcessor(MifareClassicTagProcessor):
             [list(okm[i*6:(i+1)*6]) for i in range(16)],
             [[0x00] * 6 for _ in range(16)]
         )
-    
-    def __extract_string(self, data: bytes, pos: int, length: int) -> str:
-        """Extract a null-terminated ASCII string from the data."""
-        raw = data[pos:pos+length]
-        return raw.decode('ascii', errors='ignore').rstrip('\x00')
-    
-    def __extract_uint16_le(self, data: bytes, pos: int) -> int:
-        """Extract a little-endian uint16 from the data."""
-        return struct.unpack('<H', data[pos:pos+2])[0]
-    
-    def __extract_uint32_le(self, data: bytes, pos: int) -> int:
-        """Extract a little-endian uint32 from the data."""
-        return struct.unpack('<I', data[pos:pos+4])[0]
-    
-    def __extract_float_le(self, data: bytes, pos: int) -> float:
-        """Extract a little-endian float from the data."""
-        return struct.unpack('<f', data[pos:pos+4])[0]
     
     def __parse_production_date(self, date_str: str) -> str:
         """Parse production date from format YYYY_MM_DD_HH_MM to ISO 8601."""
