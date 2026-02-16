@@ -14,9 +14,6 @@ class ElegooTagProcessor(MifareUltralightTagProcessor):
         if scan_result.tag_type != TagType.MifareUltralight:
             raise ValueError("AnycubicTagProcessor can only process Mifare Ultralight tags")
         
-        if len(data) != 180:
-            return None
-        
         filament_data = data[0x40:0x69]
         if filament_data[0x1:0x5] != b'\xEE\xEE\xEE\xEE':
             return None
