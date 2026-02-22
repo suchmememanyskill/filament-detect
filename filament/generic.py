@@ -83,6 +83,8 @@ class GenericFilament:
             "modifiers": self.modifiers,
             "colors": self.colors,
             "rgba": self.rgba,
+            "rgb": (self.rgba >> 8) & 0xFFFFFF,
+            "alpha": self.rgba & 0xFF,
             "colors_rgba": [to_rgba(color) for color in self.colors],
             "colors_rgba_hex": [f"{to_rgba(color):08X}" for color in self.colors],
             "diameter_mm": self.diameter_mm,

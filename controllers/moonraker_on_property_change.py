@@ -18,6 +18,7 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
         self.track_object = str(config["track_object"])
         self.track_field = str(config["track_field"])
         self.get_index_from_field = str(config["get_index_from_field"])
+        self.act_on_value = config.get("act_on_value", None)
         self.klippy_ready = False
         self.current_value = None
 
@@ -50,6 +51,7 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
                 tracked_field = tracked_object.get(self.track_field, None)
                 if tracked_field is not None:
                     self.current_value = tracked_field
+                    self.handle_diff(tracked_field)
                     logging.info(f"Initial value for tracked field set to: {self.current_value}")
         elif "method" in message:
             if message["method"] == "notify_klippy_disconnected" or message["method"] == "notify_klippy_shutdown":
@@ -98,7 +100,7 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
         
         # TODO : This could be better
         if self.get_index_from_field == "array":
-            if self.current_value == new:
+            if self.current_value == new and self.act_on_value is None:
                 return
             
             if not isinstance(new, list) or not isinstance(self.current_value, list):
@@ -113,7 +115,7 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
             changed_slots = []
             
             for i in range(len(new)):
-                if new[i] != self.current_value[i]:
+                if new[i] != self.current_value[i] or (self.act_on_value is not None and str(new[i]) == self.act_on_value):
                     changed_slots.append(i)
 
             if len(changed_slots) <= 0:
