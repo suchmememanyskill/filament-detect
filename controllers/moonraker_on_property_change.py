@@ -50,8 +50,9 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
                 tracked_object = status.get(self.track_object, {})
                 tracked_field = tracked_object.get(self.track_field, None)
                 if tracked_field is not None:
-                    self.current_value = tracked_field
+                    self.current_value = None
                     self.handle_diff(tracked_field)
+                    self.current_value = tracked_field
                     logging.info(f"Initial value for tracked field set to: {self.current_value}")
         elif "method" in message:
             if message["method"] == "notify_klippy_disconnected" or message["method"] == "notify_klippy_shutdown":
@@ -94,28 +95,25 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
         self.send_message(subscribe_message)
 
     def handle_diff(self, new):
-        if self.current_value is None:
-            self.current_value = new # Should realistically never happen
-            return
-        
         # TODO : This could be better
         if self.get_index_from_field == "array":
-            if self.current_value == new and self.act_on_value is None:
-                return
-            
-            if not isinstance(new, list) or not isinstance(self.current_value, list):
-                logging.error("Expected array value for field but got non-array")
-                return
-            
-            if len(new) != len(self.current_value):
-                logging.warning("Array length changed, resetting state")
-                self.current_value = new
-                return
+            if self.current_value is not None:
+                if self.current_value == new and self.act_on_value is None:
+                    return
+                
+                if not isinstance(new, list) or not isinstance(self.current_value, list):
+                    logging.error("Expected array value for field but got non-array")
+                    return
+                
+                if len(new) != len(self.current_value):
+                    logging.warning("Array length changed, resetting state")
+                    self.current_value = new
+                    return
             
             changed_slots = []
             
             for i in range(len(new)):
-                if new[i] != self.current_value[i] or (self.act_on_value is not None and str(new[i]) == self.act_on_value):
+                if (self.current_value is None or new[i] != self.current_value[i]) and (self.act_on_value is None or str(new[i]) == self.act_on_value):
                     changed_slots.append(i)
 
             if len(changed_slots) <= 0:
