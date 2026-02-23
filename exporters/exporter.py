@@ -9,6 +9,7 @@ from reader.scan_result import ScanResult
 class Exporter(ConfigurableEntity):
     def __init__(self, config: dict):
         super().__init__(config, TYPE_EXPORTER)
+        self.error_exporter = str(config.get("error_exporter", "false")).lower() == "true"
 
     @abstractmethod
     def export_data(self, scan: ScanResult|None, filament: GenericFilament|None, reader : RfidReader):

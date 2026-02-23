@@ -116,9 +116,6 @@ class MoonrakerOnPropertyChangeController(MoonrakerController):
                 if (self.current_value is None or new[i] != self.current_value[i]) and (self.act_on_value is None or str(new[i]) == self.act_on_value):
                     changed_slots.append(i)
 
-            if len(changed_slots) <= 0:
-                return
-            
             for changed_slot in changed_slots:
                 self.runtime.start_reading_tag(changed_slot)
 

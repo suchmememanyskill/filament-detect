@@ -16,3 +16,6 @@ def get_required_configurable_entity_by_name(name: str, type: str) -> Configurab
     if entity is None:
         raise ValueError(f"Configurable entity with name '{name}' and type '{type}' not found")
     return entity
+
+def get_entities_by_type(type: str) -> list[ConfigurableEntity]:
+    return [entity for entity in LOADED_MODULES if entity.type == type]

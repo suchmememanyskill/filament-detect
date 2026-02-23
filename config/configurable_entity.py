@@ -5,6 +5,7 @@ class ConfigurableEntity(ABC):
         self.name = config["__name"]
         self.type = type
         self.config = config
+        self.enabled = str(config.get("enabled", "true")).lower() == "true"
 
     def get_str_array_from_config(self, key: str, optional : bool) -> list[str]:
         if optional and key not in self.config:

@@ -11,25 +11,30 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
     def __init__(self, config : dict):
         super().__init__(config)
 
-        key = self.load_hex_key_from_config(Constants.CREALITY_SALT_HASH)
+        self.key = self.load_hex_key_from_config(Constants.CREALITY_SALT_HASH) or b''
+        self.enabled = len(self.key) > 0
 
-        if key is None:
-            raise ValueError("CrealityTagProcessor requires a valid hex key in the config with the correct hash")
-        
-        self.key = key
+        if not self.enabled:
+            logging.warning("CrealityTagProcessor: no valid key found in config, processor will be disabled")
 
         self.encryption_key = self.load_hex_key_from_config(Constants.CREALITY_ENCRYPTION_KEY_HASH, "encryption_key")
 
         if self.encryption_key is None:
             logging.warning("No valid encryption key found in config for CrealityTagProcessor, will attempt to process tags without decryption")
 
-    def authenticate_tag(self, scan_result) -> TagAuthentication:
+    def authenticate_tag(self, scan_result) -> TagAuthentication | None:
+        if not self.enabled:
+            return None
+
         if scan_result.tag_type != TagType.MifareClassic1k:
             raise ValueError("CrealityTagProcessor can only authenticate Mifare Classic 1K tags")
 
         return self.__hkdf_create_key(scan_result.uid)
     
     def process_tag(self, scan_result: ScanResult, data: bytes) -> GenericFilament | None:
+        if not self.enabled:
+            return None
+
         if scan_result.tag_type != TagType.MifareClassic1k:
             raise ValueError("CrealityTagProcessor can only process Mifare Classic 1K tags")
         

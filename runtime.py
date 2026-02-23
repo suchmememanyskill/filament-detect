@@ -1,4 +1,5 @@
-from config import TYPE_CONTROLLER, ConfigurableEntity, get_required_configurable_entity_by_name, TYPE_EXPORTER, TYPE_TAG_PROCESSOR, TYPE_RFID_READER
+from config import TYPE_CONTROLLER, TYPE_CONFIGURATION, get_required_configurable_entity_by_name, TYPE_EXPORTER, TYPE_TAG_PROCESSOR, TYPE_RFID_READER, get_entities_by_type
+from config.configuration import default_configuration, Configuration
 from controllers.controller import Controller
 from tag.tag_types import TagType
 from tag.tag_processor import TagProcessor
@@ -14,20 +15,22 @@ from typing import cast
 import time
 import logging
 
-class Runtime(ConfigurableEntity):
-    def __init__(self, config : dict):
-        config["__name"] = "runtime"
-        super().__init__(config, "runtime")
+class Runtime:
+    def __init__(self):
+        configs = cast(list[Configuration], get_entities_by_type(TYPE_CONFIGURATION))
 
-        self.auto_read_mode = str(config.get("auto_read_mode", "false")).lower() == "true"
-        self.read_interval_seconds = float(config.get("read_interval_seconds", 1))
-        self.read_retries = int(config.get("retries", 3))
+        if len(configs) == 0:
+            configs = [default_configuration()]
+        elif len(configs) >= 2:
+            logging.warning(f"Multiple configurations found, using the first one: {[config.name for config in configs]}")
 
-        self.rfid_readers : list[RfidReader] = [cast(RfidReader, get_required_configurable_entity_by_name(name, TYPE_RFID_READER)) for name in self.get_str_array_from_config("rfid_readers", True)]
-        self.tag_processors : list[TagProcessor] = [cast(TagProcessor, get_required_configurable_entity_by_name(name, TYPE_TAG_PROCESSOR)) for name in self.get_str_array_from_config("tag_processors", True)]
-        self.exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in self.get_str_array_from_config("exporters", True)]
-        self.error_exporters : list[Exporter] = [cast(Exporter, get_required_configurable_entity_by_name(name, TYPE_EXPORTER)) for name in self.get_str_array_from_config("error_exporters", True)]
-        self.controllers : list[Controller] = [cast(Controller, get_required_configurable_entity_by_name(name, TYPE_CONTROLLER)) for name in self.get_str_array_from_config("controllers", True)]
+        self.config = configs[0]
+
+        self.rfid_readers : list[RfidReader] = [x for x in cast(list[RfidReader], get_entities_by_type(TYPE_RFID_READER)) if x.enabled]
+        self.tag_processors : list[TagProcessor] = [x for x in cast(list[TagProcessor], get_entities_by_type(TYPE_TAG_PROCESSOR)) if x.enabled]
+        self.exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and not x.error_exporter]
+        self.error_exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and x.error_exporter]
+        self.controllers : list[Controller] = [x for x in cast(list[Controller], get_entities_by_type(TYPE_CONTROLLER)) if x.enabled]
 
         for controller in self.controllers:
             controller.runtime = self # type: ignore
@@ -42,13 +45,13 @@ class Runtime(ConfigurableEntity):
             logging.error(f"Invalid slot number: {slot}")
             return
         
-        self.read_retries_left[slot] = self.read_retries
-        logging.info(f"Started reading tag on slot {slot} with {self.read_retries} retries")
+        self.read_retries_left[slot] = self.config.read_retries
+        logging.info(f"Started reading tag on slot {slot} with {self.config.read_retries} retries")
 
     def loop(self):
         while True:
             for i, reader in enumerate(self.rfid_readers):
-                if self.auto_read_mode or self.read_retries_left[i] > 0:
+                if self.config.auto_read_mode or self.read_retries_left[i] > 0:
                     result = self.process_reader_single(reader)
                     self.read_retries_left[i] -= 1
 
@@ -61,14 +64,14 @@ class Runtime(ConfigurableEntity):
 
                         self.read_retries_left[i] = 0
 
-                    elif self.read_retries_left[i] <= 0 and not self.auto_read_mode:
+                    elif self.read_retries_left[i] <= 0 and not self.config.auto_read_mode:
                         logging.warning(f"Failed to read from reader {reader.name}, no retries left")
                         self.read_retries_left[i] = 0
 
                         for exporter in self.error_exporters:
                             exporter.export_data(None, None, reader)
 
-            time.sleep(self.read_interval_seconds)
+            time.sleep(self.config.read_interval_seconds)
         
     def process_reader_single(self, reader: RfidReader) -> tuple[ScanResult, GenericFilament]|None:
         reader.start_session()
@@ -80,7 +83,7 @@ class Runtime(ConfigurableEntity):
         
         uid = scan_result.uid.hex()
         
-        if self.auto_read_mode and reader.is_same_tag(uid):
+        if self.config.auto_read_mode and reader.is_same_tag(uid):
             logging.debug("Same tag detected as last read, skipping processing")
             return
         
@@ -112,6 +115,12 @@ class Runtime(ConfigurableEntity):
 
             logging.debug(f"Attempting to read with processor: {processor.name}")
             auth = processor.authenticate_tag(scan_result)
+
+            if auth is None:
+                logging.warning("Authentication failed with processor, skipping processor")
+                reader.end_session()
+                continue
+
             card_data = reader.read_mifare_classic(scan_result, auth)
             reader.end_session()
 

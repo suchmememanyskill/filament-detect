@@ -15,7 +15,7 @@ class MifareClassicTagProcessor(TagProcessor):
         super().__init__(config)
     
     @abstractmethod
-    def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:
+    def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication|None:
         """Return a list of sector keys for authentication."""
         raise NotImplementedError("Subclasses must implement this method")
     

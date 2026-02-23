@@ -15,14 +15,16 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
     def __init__(self, config : dict):
         super().__init__(config)
 
-        key = self.load_hex_key_from_config(Constants.SNAPMAKER_SALT_HASH)
+        self.key : bytes = self.load_hex_key_from_config(Constants.SNAPMAKER_SALT_HASH) or b''
+        self.enabled = len(self.key) > 0
 
-        if key is None:
-            raise ValueError("SnapmakerTagProcessor requires a valid key in the config with the correct hash")
+        if not self.enabled:
+            logging.warning("SnapmakerTagProcessor: no valid key found in config, processor will be disabled")
 
-        self.key = key
+    def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication | None:
+        if not self.enabled:
+            return None
 
-    def authenticate_tag(self, scan_result : ScanResult) -> TagAuthentication:
         if scan_result.tag_type != TagType.MifareClassic1k:
             raise ValueError("SnapmakerTagProcessor can only authenticate Mifare Classic 1K tags")
         
@@ -34,6 +36,9 @@ class SnapmakerTagProcessor(MifareClassicTagProcessor):
         )
 
     def process_tag(self, scan_result : ScanResult, data : bytes) -> GenericFilament | None:
+        if not self.enabled:
+            return None
+
         if scan_result.tag_type != TagType.MifareClassic1k or len(data) != Constants.M1_PROTO_TOTAL_SIZE:
             raise ValueError("SnapmakerTagProcessor can only process Mifare Classic 1K tags")
         

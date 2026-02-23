@@ -2,6 +2,7 @@
 from typing import cast
 from bus import OutputPin, SoftwareSPI
 from config import register_configurable_entity, get_required_configurable_entity_by_name, TYPE_RUNTIME, TYPE_EXPORTER, TYPE_TAG_PROCESSOR, TYPE_RFID_READER, ConfigurableEntity
+from config.configuration import Configuration
 from controllers.moonraker_remote_method import MoonrakerRemoteMethodController
 from exporters.webhook import WebhookExporter
 from reader.fm175xx.rfid import Fm175xx
@@ -30,7 +31,7 @@ def consume_config(config: dict) -> Runtime:
         configurable_entity = create_configurable_entity(key, value)
         register_configurable_entity(configurable_entity)
 
-    return cast(Runtime, get_required_configurable_entity_by_name("runtime", TYPE_RUNTIME))
+    return Runtime()
 
 def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
     key_split = key.split(" ", 2)
@@ -38,8 +39,8 @@ def create_configurable_entity(key: str, config: dict) -> ConfigurableEntity:
     config["__name"] = name
 
     match key_split[0]:
-        case "runtime":
-            return Runtime(config)
+        case "configuration":
+            return Configuration(config)
         case "output_pin":
             return OutputPin(config)
         case "software_spi":
