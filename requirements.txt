@@ -1,0 +1,4 @@
+requests
+jinja2
+spidev
+# libgpiod 1.6.4
