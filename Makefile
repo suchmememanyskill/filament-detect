@@ -1,8 +1,8 @@
-.PHONY: install-u1
+.PHONY: install
 
-install-u1:
+install:
 ifndef DESTDIR
-	$(error DESTDIR is required. Usage: make install-u1 DESTDIR=/path/to/destination)
+	$(error DESTDIR is required. Usage: make install DESTDIR=/path/to/destination)
 endif
 	mkdir -p $(DESTDIR)
-	cp -r . $(DESTDIR)
+	cp -r ./src/* $(DESTDIR)
