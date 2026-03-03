@@ -14,12 +14,12 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
         self.enabled = len(self.key) > 0
 
         if not self.enabled:
-            logging.warning("CrealityTagProcessor: no valid key found in config, processor will be disabled")
+            self.logger.warning("CrealityTagProcessor: no valid key found in config, processor will be disabled")
 
         self.encryption_key = self.load_hex_key_from_config(Constants.CREALITY_ENCRYPTION_KEY_HASH, "encryption_key")
 
         if self.encryption_key is None:
-            logging.warning("No valid encryption key found in config for CrealityTagProcessor, will attempt to process tags without decryption")
+            self.logger.warning("No valid encryption key found in config for CrealityTagProcessor, will attempt to process tags without decryption")
 
     def authenticate_tag(self, scan_result) -> TagAuthentication | None:
         if not self.enabled:
@@ -46,7 +46,7 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
 
         if is_encrypted:
             if self.encryption_key is None:
-                logging.warning("Tag data appears to be encrypted but no valid encryption key is configured for CrealityTagProcessor")
+                self.logger.warning("Tag data appears to be encrypted but no valid encryption key is configured for CrealityTagProcessor")
                 return None
 
             cipher = Cipher(
@@ -72,15 +72,15 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
         serial = data_str[28:34]
         reserve = data_str[34:48]
 
-        logging.debug("Found Creality filament tag:")
-        logging.debug(" Batch: %s", batch)
-        logging.debug(" Date: %04d-%02d-%02d", year, month, day)
-        logging.debug(" Supplier: %s", supplier)
-        logging.debug(" Material: %s", material)
-        logging.debug(" Color: %s%X", color_prefix, color)
-        logging.debug(" Length (m): %d", length_m)
-        logging.debug(" Serial: %s", serial)
-        logging.debug(" Reserve: %s", reserve)
+        self.logger.debug("Found Creality filament tag:")
+        self.logger.debug(" Batch: %s", batch)
+        self.logger.debug(" Date: %04d-%02d-%02d", year, month, day)
+        self.logger.debug(" Supplier: %s", supplier)
+        self.logger.debug(" Material: %s", material)
+        self.logger.debug(" Color: %s%X", color_prefix, color)
+        self.logger.debug(" Length (m): %d", length_m)
+        self.logger.debug(" Serial: %s", serial)
+        self.logger.debug(" Reserve: %s", reserve)
         
         match length_m:
             case 330:
@@ -93,7 +93,7 @@ class CrealityTagProcessor(MifareClassicTagProcessor):
                 weight_grams = 1000  # Default to 1000g if unknown
 
         if material not in Constants.CREALITY_FILAMENT_CODE_TO_DATA:
-            logging.error("Unknown Creality filament material code: %s", material)
+            self.logger.error("Unknown Creality filament material code: %s", material)
             return None
 
         extra_data = Constants.CREALITY_FILAMENT_CODE_TO_DATA[material]

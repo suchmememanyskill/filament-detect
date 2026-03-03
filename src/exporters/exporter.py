@@ -4,12 +4,24 @@ from abc import abstractmethod
 from filament.generic import GenericFilament
 from reader.rfid_reader import RfidReader
 from reader.scan_result import ScanResult
+from enum import Enum
 
+class ExporterEvent(Enum):
+    TAG_READ = "tag_read"
+    TAG_DETECTED = "tag_detected"
+    TAG_READ_ERROR = "tag_read_error"
 
 class Exporter(ConfigurableEntity):
     def __init__(self, config: dict):
         super().__init__(config, TYPE_EXPORTER)
-        self.error_exporter = str(config.get("error_exporter", "false")).lower() == "true"
+        self.events = [ExporterEvent(event) for event in self.get_str_array_from_config("events", True) if isinstance(event, str)]
+
+        event = config.get("event", "").lower()
+        if event:
+            self.events = [ExporterEvent(event)]
+
+        if not self.events:
+            self.logger.error(f"Exporter '{self.name}' must have at least one event specified in the configuration")
 
     @abstractmethod
     def export_data(self, scan: ScanResult|None, filament: GenericFilament|None, reader : RfidReader):

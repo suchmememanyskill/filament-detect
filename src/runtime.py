@@ -8,7 +8,7 @@ from tag.mifare_ultralight_tag_processor import MifareUltralightTagProcessor
 from reader.mifare_classic_reader import MifareClassicReader
 from reader.mifare_ultralight_reader import MifareUltralightReader
 from reader.rfid_reader import RfidReader
-from exporters.exporter import Exporter
+from exporters.exporter import Exporter, ExporterEvent
 from reader.scan_result import ScanResult
 from filament import GenericFilament
 from typing import cast
@@ -28,9 +28,12 @@ class Runtime:
 
         self.rfid_readers : list[RfidReader] = [x for x in cast(list[RfidReader], get_entities_by_type(TYPE_RFID_READER)) if x.enabled]
         self.tag_processors : list[TagProcessor] = [x for x in cast(list[TagProcessor], get_entities_by_type(TYPE_TAG_PROCESSOR)) if x.enabled]
-        self.exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and not x.error_exporter]
-        self.error_exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and x.error_exporter]
+        self.success_exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and ExporterEvent.TAG_READ in x.events]
+        self.detection_exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and ExporterEvent.TAG_DETECTED in x.events]
+        self.error_exporters : list[Exporter] = [x for x in cast(list[Exporter], get_entities_by_type(TYPE_EXPORTER)) if x.enabled and ExporterEvent.TAG_READ_ERROR in x.events]
         self.controllers : list[Controller] = [x for x in cast(list[Controller], get_entities_by_type(TYPE_CONTROLLER)) if x.enabled]
+
+        #print(f"{self.success_exporters} {self.detection_exporters} {self.error_exporters}")
 
         for controller in self.controllers:
             controller.runtime = self # type: ignore
@@ -58,10 +61,14 @@ class Runtime:
 
                     if result is not None:
                         scan_result, filament = result
-                        if filament is not None:
-                            logging.info(f"Processed tag with UID {scan_result.uid} into filament: {filament}")
 
-                            for exporter in self.exporters:
+                        for exporter in self.detection_exporters:
+                                exporter.export_data(scan_result, filament, reader)
+
+                        if filament is not None:
+                            logging.info(f"Processed tag with UID {scan_result.uid.hex().upper()}")
+
+                            for exporter in self.success_exporters:
                                 exporter.export_data(scan_result, filament, reader)
 
                         self.read_retries_left[i] = 0
