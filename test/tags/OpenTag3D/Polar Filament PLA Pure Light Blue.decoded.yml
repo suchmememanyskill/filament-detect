@@ -1,0 +1,40 @@
+tag_version: 2.000
+material: PLA
+material_mod: Pure
+manufacturer: Polar Filament
+color_name: Light Blue
+color_1: [20, 173, 219, 255]
+color_2: [0, 0, 0, 0]
+color_3: [0, 0, 0, 0]
+color_4: [0, 0, 0, 0]
+serial: 50017-FYG5
+sku: P023
+barcode: 749565056953
+mfg_date: '2026-04-03'
+mfg_time: '10:19:33'
+diameter: 1.75
+tolerance: 0.02
+nozzle_diameter: 0.4
+print_temp: 215
+min_print_temp: 205
+max_print_temp: 245
+chamber_temp: 0
+bed_temp: 60
+min_bed_temp: 50
+max_bed_temp: 65
+target_vso: 0
+min_vso: 0
+max_vso: 0
+max_dry_temp: 65
+dry_time: 0
+density: 1.24
+weight: 1000
+empty_spool_weight: 215
+measured_length: 36
+measured_weight: 0
+spool_core_diameter: 80
+td: 0.0
+mfi_temp: 210
+mfi_load: 2160
+mfi_value: 60
+data_url: pfil.us?k=D0j-FYG5
