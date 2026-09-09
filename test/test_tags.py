@@ -17,6 +17,7 @@ from tag.bambu.processor import BambuTagProcessor
 from tag.creality.processor import CrealityTagProcessor
 from tag.elegoo.processor import ElegooTagProcessor
 from tag.openspool.processor import OpenspoolTagProcessor
+from tag.opentag3d import OpenTag3DTagProcessor
 from tag.qidi.processor import QidiTagProcessor
 from tag.snapmaker.processor import SnapmakerTagProcessor
 from tag.spoolease.processor import SpooleaseTagProcessor
@@ -142,6 +143,10 @@ def _build_tigertag_processor() -> TagProcessor:
 
 
 PROCESSOR_FIXTURES = {
+    "OpenTag3D": {
+        "build_processor": lambda: OpenTag3DTagProcessor({"__name": "OpenTag3DTagProcessor"}),
+        "tag_type": TagType.MifareUltralight,
+    },
     "Anycubic": {
         "build_processor": _build_anycubic_processor,
         "tag_type": TagType.MifareUltralight,
